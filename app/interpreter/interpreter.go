@@ -42,6 +42,18 @@ func EvaluateAst(node *parser.AstNode) (any, error) {
 
 		return nil, nil
 
+	case parser.EXPRSTM:
+		if len(node.Children) != 1 {
+			return nil, fmt.Errorf("interpreter error: not 1 child for print statement node")
+		}
+
+		_, err := EvaluateAst(node.Children[0])
+		if err != nil {
+			return nil, err
+		}
+
+		return nil, nil
+
 	case parser.GROUP:
 		if len(node.Children) != 1 {
 			return nil, fmt.Errorf("interpreter error: no children for group node")
