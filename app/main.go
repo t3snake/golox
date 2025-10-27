@@ -22,7 +22,7 @@ func main() {
 
 	command := os.Args[1]
 
-	valid_commands := []string{"tokenize", "parse", "evaluate"}
+	valid_commands := []string{"tokenize", "parse", "evaluate", "run"}
 
 	is_command_valid := false
 	for _, valid_command := range valid_commands {
@@ -66,31 +66,54 @@ func run(command, source string) {
 		return // early return if only to tokenize
 	}
 
-	ast, _ := parser.Parse(tokens)
+	// Legacy parser and evaluater/interpreter which only works with expression
+	if command == "parse" || command == "evaluate" {
+		ast, _ := parser.ParseExpression(tokens)
 
-	if *had_error {
-		os.Exit(65)
+		if *had_error {
+			os.Exit(65)
+		}
+
+		switch command {
+		case "parse":
+			fmt.Println(parser.AstPrinter(ast))
+		case "evaluate":
+			eval, err := interpreter.EvaluateAst(ast)
+
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "unexpected error: %s\n", err)
+			}
+
+			had_runtime_error := loxerrors.GetRuntimeErrorState()
+
+			if *had_runtime_error {
+				os.Exit(70)
+			}
+
+			fmt.Println(interpreter.PrintEvaluation(eval))
+		}
+		return
 	}
 
-	if command == "parse" {
-		fmt.Println(parser.AstPrinter(ast))
+	if command == "run" {
+		ast, _ := parser.ParseProgram(tokens)
 
-		return // return here for parse command
+		// should parse error still show other outputs? Probably not
+		if *had_error {
+			os.Exit(65)
+		}
+
+		err := interpreter.Interpret(ast)
+
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "unexpected error: %s\n", err)
+		}
+
+		had_runtime_error := loxerrors.GetRuntimeErrorState()
+
+		if *had_runtime_error {
+			os.Exit(70)
+		}
 	}
 
-	eval, err := interpreter.EvaluateAst(ast)
-
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "unexpected error: %s\n", err)
-	}
-
-	had_runtime_error := loxerrors.GetRuntimeErrorState()
-
-	if *had_runtime_error {
-		os.Exit(70)
-	}
-
-	if command == "evaluate" {
-		fmt.Println(interpreter.PrintEvaluation(eval))
-	}
 }

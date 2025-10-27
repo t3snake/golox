@@ -11,12 +11,16 @@ import (
 type NodeType string
 
 const (
+	// expression types
 	BINARY     NodeType = "binary"
 	UNARY      NodeType = "unary"
 	TERMINAL   NodeType = "terminal"
 	STRINGNODE NodeType = "string"
 	NUMBERNODE NodeType = "number"
 	GROUP      NodeType = "group"
+	// statement types
+	PRINTSTM NodeType = "print_statement"
+	EXPRSTM  NodeType = "expression_statement"
 )
 
 // Abstract Syntax Tree Node
@@ -26,8 +30,17 @@ type AstNode struct {
 	Children       []*AstNode
 }
 
-/*  Context Free Grammer from low to high precedence:
+/*  Context Free Grammer from low to high precedence of resolution:
+// Program level
+program        → statement* EOF ;
 
+statement      → exprStmt
+               | printStmt ;
+
+exprStmt       → expression ";" ;
+printStmt      → "print" expression ";" ;
+
+// Expression level
 expression     → equality ;
 equality       → comparison ( ( "!=" | "==" ) comparison )* ;
 comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
@@ -38,6 +51,37 @@ unary          → ( "!" | "-" ) unary
 primary        → NUMBER | STRING | "true" | "false" | "nil"
                | "(" expression ")" ;
 */
+
+func statement() (*AstNode, error) {
+	if match(PRINT) {
+		return genericStatement(true)
+	}
+
+	return genericStatement(false)
+}
+
+func genericStatement(is_print bool) (*AstNode, error) {
+	var node_type NodeType
+	if is_print {
+		node_type = PRINTSTM
+	} else {
+		node_type = EXPRSTM
+	}
+
+	expr_value, err := expression()
+	if err != nil {
+		return nil, err
+	}
+
+	consume(SEMICOLON, "Expect ';' after value.")
+
+	return &AstNode{
+		Representation: nil,
+		Type:           node_type,
+		Children:       []*AstNode{expr_value},
+	}, nil
+
+}
 
 func expression() (*AstNode, error) {
 	return equality()

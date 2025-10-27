@@ -2,6 +2,7 @@ package interpreter
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 
 	"github.com/codecrafters-io/interpreter-starter-go/app/loxerrors"
@@ -11,9 +12,36 @@ import (
 	. "github.com/codecrafters-io/interpreter-starter-go/app/token"
 )
 
+// Interpret list of statements or a program. Entry point of interpreter package
+func Interpret(statements []*parser.AstNode) error {
+	for _, statement := range statements {
+		_, err := EvaluateAst(statement)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Evaluate or interpret a single statement or expression
 func EvaluateAst(node *parser.AstNode) (any, error) {
 	// TODO typecheck here? but any return type
 	switch node.Type {
+	case parser.PRINTSTM:
+		if len(node.Children) != 1 {
+			return nil, fmt.Errorf("interpreter error: not 1 child for print statement node")
+		}
+
+		expr_to_print, err := EvaluateAst(node.Children[0])
+		if err != nil {
+			return nil, err
+		}
+
+		fmt.Fprintln(os.Stdout, PrintEvaluation(expr_to_print))
+
+		return nil, nil
+
 	case parser.GROUP:
 		if len(node.Children) != 1 {
 			return nil, fmt.Errorf("interpreter error: no children for group node")

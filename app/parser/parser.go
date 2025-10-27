@@ -81,8 +81,24 @@ func synchronize() {
 
 }
 
-// Parse given list of tokens and returns AST. Entry point to parser package.
-func Parse(tokens []Token) (syntax_tree *AstNode, err error) {
+// Parse given list of tokens and returns AST for each statement. Entry point to parser package.
+func ParseProgram(tokens []Token) (syntax_tree []*AstNode, err error) {
+	global_tokens = tokens
+
+	for peek().Type != EOF {
+
+		stm, err := statement()
+		if err != nil {
+			return nil, err
+		}
+		syntax_tree = append(syntax_tree, stm)
+	}
+
+	return syntax_tree, nil
+}
+
+// Parse individual node for legacy parse command
+func ParseExpression(tokens []Token) (syntax_tree *AstNode, err error) {
 	global_tokens = tokens
 
 	root, err := expression()
