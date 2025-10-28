@@ -163,7 +163,7 @@ func assignment() (*AstNode, error) {
 
 	if match(EQUAL) {
 		equal_token := previous()
-		r_value, err := equality()
+		r_value, err := assignment()
 		if err != nil {
 			return nil, err
 		}
