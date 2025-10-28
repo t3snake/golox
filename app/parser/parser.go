@@ -78,7 +78,6 @@ func synchronize() {
 
 		advance()
 	}
-
 }
 
 // Parse given list of tokens and returns AST for each statement. Entry point to parser package.
@@ -87,7 +86,7 @@ func ParseProgram(tokens []Token) (syntax_tree []*AstNode, err error) {
 
 	for peek().Type != EOF {
 
-		stm, err := statement()
+		stm, err := declaration()
 		if err != nil {
 			return nil, err
 		}

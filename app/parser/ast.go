@@ -18,9 +18,11 @@ const (
 	STRINGNODE NodeType = "string"
 	NUMBERNODE NodeType = "number"
 	GROUP      NodeType = "group"
+	VARIABLE   NodeType = "variable"
 	// statement types
 	PRINTSTM NodeType = "print_statement"
 	EXPRSTM  NodeType = "expression_statement"
+	VARDECLR NodeType = "variable_declaration"
 )
 
 // Abstract Syntax Tree Node
@@ -32,7 +34,10 @@ type AstNode struct {
 
 /*  Context Free Grammer from low to high precedence of resolution:
 // Program level
-program        → statement* EOF ;
+program        → declaration* EOF ;
+
+declaration    → varDecl
+			   | statement ;
 
 statement      → exprStmt
                | printStmt ;
@@ -49,8 +54,65 @@ factor         → unary ( ( "/" | "*" ) unary )* ;
 unary          → ( "!" | "-" ) unary
                | primary ;
 primary        → NUMBER | STRING | "true" | "false" | "nil"
-               | "(" expression ")" ;
+               | "(" expression ")" | IDENTIFIER ;
 */
+
+func declaration() (*AstNode, error) {
+	var ast_node *AstNode
+	var err error
+	if match(VAR) {
+		ast_node, err = varDeclaration()
+	} else {
+		ast_node, err = statement()
+	}
+
+	if err != nil {
+		synchronize()
+		return nil, err
+	} else if *loxerrors.GetRuntimeErrorState() {
+		synchronize()
+		return nil, nil
+	}
+
+	return ast_node, err
+}
+
+func varDeclaration() (*AstNode, error) {
+	name, err := consume(IDENTIFIER, "Expect variable name.")
+	if err != nil {
+		return nil, err
+	}
+
+	var initializer *AstNode = &AstNode{ // nil equivalent node
+		Representation: Token{
+			Type:    NIL,
+			Lexeme:  "",
+			Literal: nil,
+			Line:    name.Line,
+		},
+		Type:     TERMINAL,
+		Children: nil,
+	}
+
+	if match(EQUAL) {
+		initializer, err = expression()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	_, err = consume(SEMICOLON, "Expect ';' after variable declaration")
+	if err != nil {
+		return nil, err
+	}
+
+	return &AstNode{
+		Representation: name.Lexeme,
+		Type:           VARDECLR,
+		Children:       []*AstNode{initializer},
+	}, nil
+
+}
 
 func statement() (*AstNode, error) {
 	if match(PRINT) {
@@ -240,8 +302,8 @@ func primary() (*AstNode, error) {
 
 	if match(IDENTIFIER) {
 		return &AstNode{
-			Representation: previous().Literal,
-			Type:           TERMINAL,
+			Representation: previous().Lexeme,
+			Type:           VARIABLE,
 			Children:       nil,
 		}, nil
 	}

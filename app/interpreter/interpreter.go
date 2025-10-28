@@ -14,6 +14,8 @@ import (
 
 // Interpret list of statements or a program. Entry point of interpreter package
 func Interpret(statements []*parser.AstNode) error {
+	initializeEnvironment()
+
 	for _, statement := range statements {
 		_, err := EvaluateAst(statement)
 		if err != nil {
@@ -28,6 +30,22 @@ func Interpret(statements []*parser.AstNode) error {
 func EvaluateAst(node *parser.AstNode) (any, error) {
 	// TODO typecheck here? but any return type
 	switch node.Type {
+	case parser.VARDECLR:
+		if len(node.Children) != 1 {
+			return nil, fmt.Errorf("interpreter error: not 1 child for variable declaration node")
+		}
+
+		evaluated_value, err := EvaluateAst(node.Children[0])
+		if err == nil {
+			switch repr_type := node.Representation.(type) {
+			case string:
+				environment[repr_type] = evaluated_value
+			default:
+				return nil, fmt.Errorf("interpreter error: did not recieve a string representation for var declr node")
+			}
+		}
+
+		return nil, err
 	case parser.PRINTSTM:
 		if len(node.Children) != 1 {
 			return nil, fmt.Errorf("interpreter error: not 1 child for print statement node")
@@ -203,6 +221,19 @@ func EvaluateAst(node *parser.AstNode) (any, error) {
 
 	case parser.STRINGNODE:
 		return node.Representation, nil
+
+	case parser.VARIABLE:
+		var_lexeme, ok := node.Representation.(string)
+		if !ok {
+			return nil, fmt.Errorf("interpreter error: identifier lexeme not a string")
+		}
+		val, ok := environment[var_lexeme]
+		if !ok {
+			// using a variable that is not defined: we return nil
+			return nil, nil
+		}
+
+		return val, nil
 
 	case parser.TERMINAL:
 		val, ok := node.Representation.(Token)
