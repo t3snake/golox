@@ -1,3 +1,5 @@
-var hello = 85;
-var result = (hello + bar) / world;
-print result;
+var hello = 93;
+var bar = 93;
+bar = hello;
+hello = bar;
+print hello + bar;

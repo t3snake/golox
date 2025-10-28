@@ -62,7 +62,7 @@ func EvaluateAst(node *parser.AstNode) (any, error) {
 
 	case parser.EXPRSTM:
 		if len(node.Children) != 1 {
-			return nil, fmt.Errorf("interpreter error: not 1 child for print statement node")
+			return nil, fmt.Errorf("interpreter error: not exactly 1 child for print statement node")
 		}
 
 		_, err := EvaluateAst(node.Children[0])
@@ -71,6 +71,31 @@ func EvaluateAst(node *parser.AstNode) (any, error) {
 		}
 
 		return nil, nil
+
+	case parser.ASSIGNMENT:
+		if len(node.Children) != 1 {
+			return nil, fmt.Errorf("interpreter error: not exactly 1 child for assignment node")
+		}
+
+		value, err := EvaluateAst(node.Children[0])
+		if err != nil {
+			return nil, err
+		}
+
+		l_token, ok := node.Representation.(Token)
+		if !ok {
+			return nil, fmt.Errorf("interpreter error: did not receive a token as Representation in assignment node")
+		}
+		_, ok = environment[l_token.Lexeme]
+		if !ok {
+			err = loxerrors.RuntimeError(l_token, fmt.Sprintf("Undefined variable %s.", l_token.Lexeme))
+			return nil, err
+		}
+
+		// main assignment
+		environment[l_token.Lexeme] = value
+
+		return value, nil
 
 	case parser.GROUP:
 		if len(node.Children) != 1 {

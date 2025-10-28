@@ -19,6 +19,7 @@ const (
 	NUMBERNODE NodeType = "number"
 	GROUP      NodeType = "group"
 	VARIABLE   NodeType = "variable"
+	ASSIGNMENT NodeType = "assignment"
 	// statement types
 	PRINTSTM NodeType = "print_statement"
 	EXPRSTM  NodeType = "expression_statement"
@@ -46,7 +47,9 @@ exprStmt       → expression ";" ;
 printStmt      → "print" expression ";" ;
 
 // Expression level
-expression     → equality ;
+expression     → assignment ;
+assignment     → IDENTIFIER "=" assignment
+			   | equality ;
 equality       → comparison ( ( "!=" | "==" ) comparison )* ;
 comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 term           → factor ( ( "-" | "+" ) factor )* ;
@@ -146,7 +149,39 @@ func genericStatement(is_print bool) (*AstNode, error) {
 }
 
 func expression() (*AstNode, error) {
-	return equality()
+	return assignment()
+}
+
+func assignment() (*AstNode, error) {
+	// we evaluate it like an expression and if there is no assignment operator, we return this
+	// if there is a assignment operator, we check if left side can be assigned to and
+	//  we just save the token to later assign the r_value
+	l_value, err := equality()
+	if err != nil {
+		return nil, err
+	}
+
+	if match(EQUAL) {
+		equal_token := previous()
+		r_value, err := equality()
+		if err != nil {
+			return nil, err
+		}
+
+		if l_value.Type != VARIABLE {
+			// if l_value is not something we can assign to
+			err = loxerrors.RuntimeError(equal_token, "Invalid assignment target.")
+			return nil, err
+		}
+
+		return &AstNode{
+			Representation: l_value.Representation,
+			Type:           ASSIGNMENT,
+			Children:       []*AstNode{r_value},
+		}, nil
+	}
+
+	return l_value, nil
 }
 
 func equality() (*AstNode, error) {
