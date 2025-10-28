@@ -223,14 +223,15 @@ func EvaluateAst(node *parser.AstNode) (any, error) {
 		return node.Representation, nil
 
 	case parser.VARIABLE:
-		var_lexeme, ok := node.Representation.(string)
+		var_token, ok := node.Representation.(Token)
 		if !ok {
 			return nil, fmt.Errorf("interpreter error: identifier lexeme not a string")
 		}
-		val, ok := environment[var_lexeme]
+		val, ok := environment[var_token.Lexeme]
 		if !ok {
-			// using a variable that is not defined: we return nil
-			return nil, nil
+			// using a variable that is not defined: we report runtime error
+			err := loxerrors.RuntimeError(var_token, fmt.Sprintf("Undefined variable '%s'", var_token.Lexeme))
+			return nil, err
 		}
 
 		return val, nil

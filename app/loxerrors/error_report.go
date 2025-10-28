@@ -56,7 +56,9 @@ func ParserError(token Token, message string) {
 	}
 }
 
-func RuntimeError(token Token, message string) {
-	fmt.Fprintf(os.Stderr, "%s\n[line %d]\n", message, token.Line)
+func RuntimeError(token Token, message string) error {
+	error_msg := fmt.Sprintf("%s\n[line %d]\n", message, token.Line)
+	fmt.Fprint(os.Stderr, error_msg)
 	instance.had_runtime_error = true
+	return fmt.Errorf("%s", error_msg)
 }

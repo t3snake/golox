@@ -302,7 +302,7 @@ func primary() (*AstNode, error) {
 
 	if match(IDENTIFIER) {
 		return &AstNode{
-			Representation: previous().Lexeme,
+			Representation: previous(),
 			Type:           VARIABLE,
 			Children:       nil,
 		}, nil
