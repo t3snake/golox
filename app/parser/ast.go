@@ -21,6 +21,7 @@ const (
 	VARIABLE   NodeType = "variable"
 	ASSIGNMENT NodeType = "assignment"
 	// statement types
+	BLOCK    NodeType = "block"
 	PRINTSTM NodeType = "print_statement"
 	EXPRSTM  NodeType = "expression_statement"
 	VARDECLR NodeType = "variable_declaration"
@@ -41,7 +42,10 @@ declaration    → varDecl
 			   | statement ;
 
 statement      → exprStmt
-               | printStmt ;
+               | printStmt
+			   | block ;
+
+block		   → "{" declaration* "}"
 
 exprStmt       → expression ";" ;
 printStmt      → "print" expression ";" ;
@@ -120,9 +124,31 @@ func varDeclaration() (*AstNode, error) {
 func statement() (*AstNode, error) {
 	if match(PRINT) {
 		return genericStatement(true)
+	} else if match(LEFT_BRACE) {
+		return block()
 	}
 
 	return genericStatement(false)
+}
+
+func block() (*AstNode, error) {
+	var statements []*AstNode
+
+	for peek().Type != RIGHT_BRACE && peek().Type != EOF {
+		stm, err := declaration()
+		if err != nil {
+			return nil, err
+		}
+		statements = append(statements, stm)
+	}
+
+	consume(RIGHT_BRACE, "Expect '}' at the end of block.")
+
+	return &AstNode{
+		Representation: nil,
+		Type:           BLOCK,
+		Children:       statements,
+	}, nil
 }
 
 func genericStatement(is_print bool) (*AstNode, error) {

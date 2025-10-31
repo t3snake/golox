@@ -78,7 +78,7 @@ func run(command, source string) {
 		case "parse":
 			fmt.Println(parser.AstPrinter(ast))
 		case "evaluate":
-			eval, err := interpreter.EvaluateAst(ast)
+			eval, err := interpreter.EvaluateAst(ast, nil)
 
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "unexpected error: %s\n", err)

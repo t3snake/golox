@@ -14,10 +14,10 @@ import (
 
 // Interpret list of statements or a program. Entry point of interpreter package
 func Interpret(statements []*parser.AstNode) error {
-	initializeEnvironment()
+	environment := initializeEnvironment(nil)
 
 	for _, statement := range statements {
-		_, err := EvaluateAst(statement)
+		_, err := EvaluateAst(statement, environment)
 		if err != nil {
 			return err
 		}
@@ -27,19 +27,30 @@ func Interpret(statements []*parser.AstNode) error {
 }
 
 // Evaluate or interpret a single statement or expression
-func EvaluateAst(node *parser.AstNode) (any, error) {
+func EvaluateAst(node *parser.AstNode, environment *EnvironmentNode) (any, error) {
 	// TODO typecheck here? but any return type
 	switch node.Type {
+	case parser.BLOCK:
+		child_environment := initializeEnvironment(environment)
+		for _, statement := range node.Children {
+			_, err := EvaluateAst(statement, child_environment)
+
+			if err != nil {
+				return nil, err
+			}
+		}
+		return nil, nil
+
 	case parser.VARDECLR:
 		if len(node.Children) != 1 {
 			return nil, fmt.Errorf("interpreter error: not 1 child for variable declaration node")
 		}
 
-		evaluated_value, err := EvaluateAst(node.Children[0])
+		evaluated_value, err := EvaluateAst(node.Children[0], environment)
 		if err == nil {
 			switch repr_type := node.Representation.(type) {
 			case string:
-				environment[repr_type] = evaluated_value
+				assignValueIfKeyExists(repr_type, evaluated_value, environment, true)
 			default:
 				return nil, fmt.Errorf("interpreter error: did not recieve a string representation for var declr node")
 			}
@@ -51,7 +62,7 @@ func EvaluateAst(node *parser.AstNode) (any, error) {
 			return nil, fmt.Errorf("interpreter error: not 1 child for print statement node")
 		}
 
-		expr_to_print, err := EvaluateAst(node.Children[0])
+		expr_to_print, err := EvaluateAst(node.Children[0], environment)
 		if err != nil {
 			return nil, err
 		}
@@ -65,7 +76,7 @@ func EvaluateAst(node *parser.AstNode) (any, error) {
 			return nil, fmt.Errorf("interpreter error: not exactly 1 child for print statement node")
 		}
 
-		_, err := EvaluateAst(node.Children[0])
+		_, err := EvaluateAst(node.Children[0], environment)
 		if err != nil {
 			return nil, err
 		}
@@ -77,7 +88,7 @@ func EvaluateAst(node *parser.AstNode) (any, error) {
 			return nil, fmt.Errorf("interpreter error: not exactly 1 child for assignment node")
 		}
 
-		value, err := EvaluateAst(node.Children[0])
+		value, err := EvaluateAst(node.Children[0], environment)
 		if err != nil {
 			return nil, err
 		}
@@ -86,14 +97,16 @@ func EvaluateAst(node *parser.AstNode) (any, error) {
 		if !ok {
 			return nil, fmt.Errorf("interpreter error: did not receive a token as Representation in assignment node")
 		}
-		_, ok = environment[l_token.Lexeme]
-		if !ok {
+
+		exists := assignValueIfKeyExists(l_token.Lexeme, value, environment, false)
+		// _, ok = environment[l_token.Lexeme]
+		if !exists {
 			err = loxerrors.RuntimeError(l_token, fmt.Sprintf("Undefined variable %s.", l_token.Lexeme))
 			return nil, err
 		}
 
 		// main assignment
-		environment[l_token.Lexeme] = value
+		// environment[l_token.Lexeme] = value
 
 		return value, nil
 
@@ -101,7 +114,7 @@ func EvaluateAst(node *parser.AstNode) (any, error) {
 		if len(node.Children) != 1 {
 			return nil, fmt.Errorf("interpreter error: no children for group node")
 		}
-		return EvaluateAst(node.Children[0])
+		return EvaluateAst(node.Children[0], environment)
 
 	case parser.UNARY:
 		val, ok := node.Representation.(Token)
@@ -112,7 +125,7 @@ func EvaluateAst(node *parser.AstNode) (any, error) {
 		if len(node.Children) != 1 {
 			return nil, fmt.Errorf("interpreter error: Unary node doesnt have 1 child")
 		}
-		child, err := EvaluateAst(node.Children[0])
+		child, err := EvaluateAst(node.Children[0], environment)
 		if err != nil {
 			return nil, err
 		}
@@ -137,11 +150,11 @@ func EvaluateAst(node *parser.AstNode) (any, error) {
 			if len(node.Children) != 2 {
 				return nil, fmt.Errorf("interpreter error: Binary node doesnt have 2 children")
 			}
-			left, err := EvaluateAst(node.Children[0])
+			left, err := EvaluateAst(node.Children[0], environment)
 			if err != nil {
 				return nil, err
 			}
-			right, err := EvaluateAst(node.Children[1])
+			right, err := EvaluateAst(node.Children[1], environment)
 			if err != nil {
 				return nil, err
 			}
@@ -252,8 +265,8 @@ func EvaluateAst(node *parser.AstNode) (any, error) {
 		if !ok {
 			return nil, fmt.Errorf("interpreter error: identifier lexeme not a string")
 		}
-		val, ok := environment[var_token.Lexeme]
-		if !ok {
+		target_env, val := getValueIfKeyInEnvironment(var_token.Lexeme, environment)
+		if target_env == nil {
 			// using a variable that is not defined: we report runtime error
 			err := loxerrors.RuntimeError(var_token, fmt.Sprintf("Undefined variable '%s'", var_token.Lexeme))
 			return nil, err
