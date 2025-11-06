@@ -131,9 +131,35 @@ func EvaluateAst(node *parser.AstNode, environment *EnvironmentNode) (any, error
 
 		return value, nil
 
+	case parser.LOGICALOP:
+		if len(node.Children) != 2 {
+			return nil, fmt.Errorf("interpreter error: not 2 children for logical operation")
+		}
+
+		left, err := EvaluateAst(node.Children[0], environment)
+		if err != nil {
+			return nil, err
+		}
+
+		val, ok := node.Representation.(Token)
+		if !ok {
+			return nil, fmt.Errorf("interpreter error: expected Token for Unary node but got %s", node.Representation)
+		}
+
+		if val.Type == OR && isTruthy(left) {
+			// short circuit if first condition is true for OR
+			return left, nil
+		} else if val.Type == AND && !isTruthy(left) {
+			// short circuit if first condition is false for AND
+			return left, nil
+		}
+
+		// if first condition does not short circuit then evaluation is the right value
+		return EvaluateAst(node.Children[1], environment)
+
 	case parser.GROUP:
 		if len(node.Children) != 1 {
-			return nil, fmt.Errorf("interpreter error: no children for group node")
+			return nil, fmt.Errorf("interpreter error: not exactly 1 child for group node")
 		}
 		return EvaluateAst(node.Children[0], environment)
 

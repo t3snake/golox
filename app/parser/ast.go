@@ -20,6 +20,7 @@ const (
 	GROUP      NodeType = "group"
 	VARIABLE   NodeType = "variable"
 	ASSIGNMENT NodeType = "assignment"
+	LOGICALOP  NodeType = "logical_operator"
 	// statement types
 	BLOCK    NodeType = "block"
 	PRINTSTM NodeType = "print_statement"
@@ -58,7 +59,9 @@ printStmt      → "print" expression ";" ;
 // Expression level
 expression     → assignment ;
 assignment     → IDENTIFIER "=" assignment
-			   | equality ;
+			   | logic_or ;
+logic_or       → logic_and ( "or" logic_and )* ;
+logic_and      → equality ( "and" equality )* ;
 equality       → comparison ( ( "!=" | "==" ) comparison )* ;
 comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 term           → factor ( ( "-" | "+" ) factor )* ;
@@ -225,7 +228,7 @@ func assignment() (*AstNode, error) {
 	// we evaluate it like an expression and if there is no assignment operator, we return this
 	// if there is a assignment operator, we check if left side can be assigned to and
 	//  we just save the token to later assign the r_value
-	l_value, err := equality()
+	l_value, err := logicOr()
 	if err != nil {
 		return nil, err
 	}
@@ -251,6 +254,52 @@ func assignment() (*AstNode, error) {
 	}
 
 	return l_value, nil
+}
+
+func logicOr() (*AstNode, error) {
+	left, err := logicAnd()
+	if err != nil {
+		return nil, err
+	}
+
+	for match(OR) {
+		operator := previous()
+		right, err := logicAnd()
+		if err != nil {
+			return nil, err
+		}
+
+		left = &AstNode{
+			Representation: operator,
+			Type:           LOGICALOP,
+			Children:       []*AstNode{left, right},
+		}
+	}
+
+	return left, nil
+}
+
+func logicAnd() (*AstNode, error) {
+	left, err := equality()
+	if err != nil {
+		return nil, err
+	}
+
+	for match(AND) {
+		operator := previous()
+		right, err := equality()
+		if err != nil {
+			return nil, err
+		}
+
+		left = &AstNode{
+			Representation: operator,
+			Type:           LOGICALOP,
+			Children:       []*AstNode{left, right},
+		}
+	}
+
+	return left, nil
 }
 
 func equality() (*AstNode, error) {
