@@ -45,10 +45,15 @@ declaration    → varDecl
 			   | statement ;
 
 statement      → exprStmt
+			   | forStmt
                | ifStmt
 			   | whileStmt
                | printStmt
                | block ;
+
+forStmt        → "for" "(" ( varDecl | exprStmt | ";" )
+                 expression? ";"
+                 expression? ")" statement ;
 
 whileStmt      → "while" "(" expression ")" statement ;
 
@@ -136,6 +141,8 @@ func varDeclaration() (*AstNode, error) {
 func statement() (*AstNode, error) {
 	if match(PRINT) {
 		return genericStatement(true)
+	} else if match(FOR) {
+		return forStatement()
 	} else if match(IF) {
 		return ifStatement()
 	} else if match(WHILE) {
@@ -145,6 +152,103 @@ func statement() (*AstNode, error) {
 	}
 
 	return genericStatement(false)
+}
+
+func forStatement() (*AstNode, error) {
+	_, err := consume(LEFT_PAREN, "Expect left parenthesis.")
+	if err != nil {
+		return nil, err
+	}
+
+	// initializer
+	var initializer *AstNode
+	if match(SEMICOLON) {
+		initializer = nil
+	} else if match(VAR) {
+		initializer, err = varDeclaration() // declaration will consume semicolon
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		initializer, err = genericStatement(false) // expression statement will consume semicolon
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// condition
+	var condition *AstNode = &AstNode{ // if no condition, it is true by default
+		Representation: Token{
+			Type:    TRUE,
+			Lexeme:  "",
+			Literal: true,
+			Line:    global_tokens[current_token].Line,
+		},
+		Type:     TERMINAL,
+		Children: nil,
+	}
+
+	if peek().Type != SEMICOLON {
+		condition, err = expression()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	consume(SEMICOLON, "Expect ';' after loop condition.")
+
+	// increment
+	var increment *AstNode = nil
+	if peek().Type != SEMICOLON {
+		increment, err = expression()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	_, err = consume(RIGHT_PAREN, "Expect right parenthesis.")
+	if err != nil {
+		return nil, err
+	}
+
+	// loop body
+	body, err := statement()
+	if err != nil {
+		return nil, err
+	}
+
+	// transform or desugar to a while statement
+
+	// generate while body
+	children := []*AstNode{body}
+	if increment != nil {
+		children = append(children, increment)
+	}
+	while_block := &AstNode{
+		Representation: nil,
+		Type:           BLOCK,
+		Children:       children,
+	}
+
+	// generate core while statement
+	while := &AstNode{
+		Representation: nil,
+		Type:           WHILESTMT,
+		Children:       []*AstNode{condition, while_block},
+	}
+
+	// generate block scope so variable declaration will go out of scope after for statement
+	children = []*AstNode{}
+	if initializer != nil {
+		children = append(children, initializer)
+	}
+	children = append(children, while)
+
+	return &AstNode{
+		Representation: nil,
+		Type:           BLOCK,
+		Children:       children,
+	}, nil
 }
 
 func ifStatement() (*AstNode, error) {
