@@ -25,6 +25,7 @@ const (
 	PRINTSTM NodeType = "print_statement"
 	EXPRSTM  NodeType = "expression_statement"
 	VARDECLR NodeType = "variable_declaration"
+	IFSTMT   NodeType = "if_statement"
 )
 
 // Abstract Syntax Tree Node
@@ -42,8 +43,12 @@ declaration    → varDecl
 			   | statement ;
 
 statement      → exprStmt
+               | ifStmt
                | printStmt
-			   | block ;
+               | block ;
+
+ifStmt         → "if" "(" expression ")" statement
+               ( "else" statement )? ;
 
 block		   → "{" declaration* "}"
 
@@ -124,11 +129,49 @@ func varDeclaration() (*AstNode, error) {
 func statement() (*AstNode, error) {
 	if match(PRINT) {
 		return genericStatement(true)
+	} else if match(IF) {
+		return ifStatement()
 	} else if match(LEFT_BRACE) {
 		return block()
 	}
 
 	return genericStatement(false)
+}
+
+func ifStatement() (*AstNode, error) {
+	_, err := consume(LEFT_PAREN, "Expect left parenthesis")
+	if err != nil {
+		return nil, err
+	}
+
+	condition, err := expression()
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = consume(RIGHT_PAREN, "Expect right parenthesis")
+	if err != nil {
+		return nil, err
+	}
+
+	then_statement, err := statement()
+	if err != nil {
+		return nil, err
+	}
+
+	var else_statement *AstNode = nil
+	if match(ELSE) {
+		else_statement, err = statement()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &AstNode{
+		Representation: nil,
+		Type:           IFSTMT,
+		Children:       []*AstNode{condition, then_statement, else_statement},
+	}, nil
 }
 
 func block() (*AstNode, error) {

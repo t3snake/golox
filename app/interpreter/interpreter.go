@@ -30,6 +30,27 @@ func Interpret(statements []*parser.AstNode) error {
 func EvaluateAst(node *parser.AstNode, environment *EnvironmentNode) (any, error) {
 	// TODO typecheck here? but any return type
 	switch node.Type {
+	case parser.IFSTMT:
+		if len(node.Children) != 3 {
+			return nil, fmt.Errorf("interpreter error: not 3 child for if statement")
+		}
+
+		condition, err := EvaluateAst(node.Children[0], environment)
+		if err != nil {
+			return nil, err
+		}
+
+		then_stm := node.Children[1]
+		else_stm := node.Children[2]
+
+		if isTruthy(condition) {
+			_, err = EvaluateAst(then_stm, environment)
+		} else if else_stm != nil {
+			_, err = EvaluateAst(else_stm, environment)
+		}
+
+		return nil, err
+
 	case parser.BLOCK:
 		child_environment := initializeEnvironment(environment)
 		for _, statement := range node.Children {
