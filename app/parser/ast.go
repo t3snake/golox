@@ -22,11 +22,12 @@ const (
 	ASSIGNMENT NodeType = "assignment"
 	LOGICALOP  NodeType = "logical_operator"
 	// statement types
-	BLOCK    NodeType = "block"
-	PRINTSTM NodeType = "print_statement"
-	EXPRSTM  NodeType = "expression_statement"
-	VARDECLR NodeType = "variable_declaration"
-	IFSTMT   NodeType = "if_statement"
+	BLOCK     NodeType = "block"
+	PRINTSTM  NodeType = "print_statement"
+	EXPRSTM   NodeType = "expression_statement"
+	VARDECLR  NodeType = "variable_declaration"
+	IFSTMT    NodeType = "if_statement"
+	WHILESTMT NodeType = "while_statement"
 )
 
 // Abstract Syntax Tree Node
@@ -45,8 +46,11 @@ declaration    → varDecl
 
 statement      → exprStmt
                | ifStmt
+			   | whileStmt
                | printStmt
                | block ;
+
+whileStmt      → "while" "(" expression ")" statement ;
 
 ifStmt         → "if" "(" expression ")" statement
                ( "else" statement )? ;
@@ -134,6 +138,8 @@ func statement() (*AstNode, error) {
 		return genericStatement(true)
 	} else if match(IF) {
 		return ifStatement()
+	} else if match(WHILE) {
+		return whileStatement()
 	} else if match(LEFT_BRACE) {
 		return block()
 	}
@@ -174,6 +180,34 @@ func ifStatement() (*AstNode, error) {
 		Representation: nil,
 		Type:           IFSTMT,
 		Children:       []*AstNode{condition, then_statement, else_statement},
+	}, nil
+}
+
+func whileStatement() (*AstNode, error) {
+	_, err := consume(LEFT_PAREN, "Expect left parenthesis")
+	if err != nil {
+		return nil, err
+	}
+
+	condition, err := expression()
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = consume(RIGHT_PAREN, "Expect right parenthesis")
+	if err != nil {
+		return nil, err
+	}
+
+	statement, err := statement()
+	if err != nil {
+		return nil, err
+	}
+
+	return &AstNode{
+		Representation: nil,
+		Type:           WHILESTMT,
+		Children:       []*AstNode{condition, statement},
 	}, nil
 }
 

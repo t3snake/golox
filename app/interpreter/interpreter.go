@@ -30,9 +30,32 @@ func Interpret(statements []*parser.AstNode) error {
 func EvaluateAst(node *parser.AstNode, environment *EnvironmentNode) (any, error) {
 	// TODO typecheck here? but any return type
 	switch node.Type {
+	case parser.WHILESTMT:
+		if len(node.Children) != 2 {
+			return nil, fmt.Errorf("interpreter error: not exactly 2 children for while statement")
+		}
+
+		for {
+			condition, err := EvaluateAst(node.Children[0], environment)
+			if err != nil {
+				return nil, err
+			}
+
+			if !isTruthy(condition) {
+				break
+			}
+
+			_, err = EvaluateAst(node.Children[1], environment)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		return nil, nil
+
 	case parser.IFSTMT:
 		if len(node.Children) != 3 {
-			return nil, fmt.Errorf("interpreter error: not 3 child for if statement")
+			return nil, fmt.Errorf("interpreter error: not exactly 3 children for if statement")
 		}
 
 		condition, err := EvaluateAst(node.Children[0], environment)
