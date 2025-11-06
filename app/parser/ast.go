@@ -199,7 +199,7 @@ func forStatement() (*AstNode, error) {
 
 	// increment
 	var increment *AstNode = nil
-	if peek().Type != SEMICOLON {
+	if peek().Type != RIGHT_PAREN {
 		increment, err = expression()
 		if err != nil {
 			return nil, err
