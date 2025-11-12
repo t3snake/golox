@@ -21,6 +21,7 @@ const (
 	VARIABLE   NodeType = "variable"
 	ASSIGNMENT NodeType = "assignment"
 	LOGICALOP  NodeType = "logical_operator"
+	FNCALL     NodeType = "function_call"
 	// statement types
 	BLOCK     NodeType = "block"
 	PRINTSTM  NodeType = "print_statement"
@@ -76,7 +77,9 @@ comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 term           → factor ( ( "-" | "+" ) factor )* ;
 factor         → unary ( ( "/" | "*" ) unary )* ;
 unary          → ( "!" | "-" ) unary
-               | primary ;
+               | call ;
+call           → primary ( "(" arguments? ")" )* ;
+arguments      → expression ( "," expression )* ;
 primary        → NUMBER | STRING | "true" | "false" | "nil"
                | "(" expression ")" | IDENTIFIER ;
 */
@@ -563,7 +566,65 @@ func unary() (*AstNode, error) {
 		return expr, nil
 	}
 
-	return primary()
+	return functionCall()
+}
+
+func functionCall() (*AstNode, error) {
+	function, err := primary()
+	if err != nil {
+		return nil, err
+	}
+
+	for {
+		if match(LEFT_PAREN) {
+			function, err = finishCall(function)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			break
+		}
+	}
+
+	return function, nil
+}
+
+func finishCall(callee *AstNode) (*AstNode, error) {
+	children := []*AstNode{callee}
+
+	if peek().Type != RIGHT_PAREN {
+		if len(children) >= 256 { // since children has callee already, check is for 255 params
+			loxerrors.ParserError(peek(), "Cant have more than 255 params for the function.")
+		}
+
+		param, err := expression()
+		if err != nil {
+			return nil, err
+		}
+
+		children = append(children, param)
+
+		for match(COMMA) {
+			param, err = expression()
+			if err != nil {
+				return nil, err
+			}
+
+			children = append(children, param)
+		}
+	}
+
+	// Right paren will be used to report runtime error in interpreter
+	paren, err := consume(RIGHT_PAREN, "Expect ')' at the end of function call")
+	if err != nil {
+		return nil, err
+	}
+
+	return &AstNode{
+		Representation: paren,
+		Type:           FNCALL,
+		Children:       children,
+	}, nil
 }
 
 func primary() (*AstNode, error) {

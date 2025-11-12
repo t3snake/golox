@@ -30,6 +30,39 @@ func Interpret(statements []*parser.AstNode) error {
 func EvaluateAst(node *parser.AstNode, environment *EnvironmentNode) (any, error) {
 	// TODO typecheck here? but any return type
 	switch node.Type {
+	case parser.FNCALL:
+		if len(node.Children) < 1 {
+			return nil, fmt.Errorf("interpreter error: function call should atleast have a callee")
+		}
+
+		callee, err := EvaluateAst(node.Children[0], environment)
+		if err != nil {
+			return nil, err
+		}
+
+		if !isExpressionCallable(callee) {
+			paren, ok := node.Representation.(Token)
+			if !ok {
+				return nil, fmt.Errorf("interpreter error: could not find paren token to report error in func call")
+			}
+			err = loxerrors.RuntimeError(paren, "Function cannot be called.")
+			return nil, err
+		}
+
+		arguments := []any{}
+
+		for _, param := range node.Children[1:] {
+			argument, err := EvaluateAst(param, environment)
+			if err != nil {
+				return nil, err
+			}
+
+			arguments = append(arguments, argument)
+		}
+
+		err = callLoxFunction(callee, arguments)
+		return nil, err
+
 	case parser.WHILESTMT:
 		if len(node.Children) != 2 {
 			return nil, fmt.Errorf("interpreter error: not exactly 2 children for while statement")
