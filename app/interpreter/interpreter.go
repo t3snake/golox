@@ -15,6 +15,7 @@ import (
 // Interpret list of statements or a program. Entry point of interpreter package
 func Interpret(statements []*parser.AstNode) error {
 	environment := initializeEnvironment(nil)
+	defineGlobalFunctions(environment)
 
 	for _, statement := range statements {
 		_, err := EvaluateAst(statement, environment)
@@ -40,12 +41,15 @@ func EvaluateAst(node *parser.AstNode, environment *EnvironmentNode) (any, error
 			return nil, err
 		}
 
-		if !isExpressionCallable(callee) {
-			paren, ok := node.Representation.(Token)
-			if !ok {
-				return nil, fmt.Errorf("interpreter error: could not find paren token to report error in func call")
-			}
-			err = loxerrors.RuntimeError(paren, "Function cannot be called.")
+		lox_func, isCallable := isExpressionCallable(callee)
+
+		paren, ok := node.Representation.(Token) // used to report runtime errors
+		if !ok {
+			return nil, fmt.Errorf("interpreter error: could not find paren token to report error in func call")
+		}
+
+		if !isCallable {
+			err = loxerrors.RuntimeError(paren, "Can only call functions and classes.")
 			return nil, err
 		}
 
@@ -60,8 +64,15 @@ func EvaluateAst(node *parser.AstNode, environment *EnvironmentNode) (any, error
 			arguments = append(arguments, argument)
 		}
 
-		err = callLoxFunction(callee, arguments)
-		return nil, err
+		if lox_func.arity != len(arguments) {
+			// dont return err here, not panic mode, the rest can keep executing
+			loxerrors.RuntimeError(paren,
+				fmt.Sprintf("Expected %d arguments but got %d", lox_func.arity, len(arguments)))
+			return nil, nil
+		}
+
+		return_val := callLoxFunction(lox_func, arguments)
+		return return_val, nil
 
 	case parser.WHILESTMT:
 		if len(node.Children) != 2 {
@@ -451,6 +462,6 @@ func PrintEvaluation(result any) string {
 	case string:
 		return res
 	default:
-		return "error: unknown evaluation"
+		return "error: unknown evaluation while printing"
 	}
 }

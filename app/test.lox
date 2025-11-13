@@ -5,3 +5,4 @@ var world;
 bar = world = 13 + 70 * 41;
 print bar;
 print world;
+print clock();

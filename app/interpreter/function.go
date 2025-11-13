@@ -1,38 +1,44 @@
 package interpreter
 
-import "fmt"
+import "time"
 
 type LoxFunction struct {
 	Lexeme string
-	call   func() any
+	arity  int // number of arguments
+	call   func(arguments []any) any
 }
 
-func callLoxFunction(callee any, arguments []any) error {
-	lox_func, ok := callee.(LoxFunction)
-	if !ok {
-		return fmt.Errorf("function is not of type LoxFunction")
+func defineGlobalFunctions(global *EnvironmentNode) {
+	global.environment["clock"] = LoxFunction{
+		Lexeme: "clock",
+		arity:  0,
+		call: func(arguments []any) any {
+			time_in_seconds := float64(time.Now().UnixMilli()) / 1000.0
+			return time_in_seconds
+		},
 	}
+}
 
-	lox_func.call()
-	return nil
+func callLoxFunction(callee *LoxFunction, arguments []any) any {
+	return callee.call(arguments)
 }
 
 // check if the result is callable
-func isExpressionCallable(evaluated_expr any) bool {
+func isExpressionCallable(evaluated_expr any) (*LoxFunction, bool) {
 	if evaluated_expr == nil {
-		return false
+		return nil, false
 	}
 
-	switch evaluated_expr.(type) {
+	switch callee := evaluated_expr.(type) {
 	case bool:
-		return false
+		return nil, false
 	case float64:
-		return false
+		return nil, false
 	case string:
-		return false
+		return nil, false
 	case LoxFunction:
-		return true
+		return &callee, true
 	default:
-		return false
+		return nil, false
 	}
 }
