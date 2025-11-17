@@ -1,15 +1,19 @@
 package interpreter
 
-import "time"
+import (
+	"time"
+)
 
+// Lox function representation for interpreter.
 type LoxFunction struct {
 	Lexeme string
 	arity  int // number of arguments
 	call   func(arguments []any) any
 }
 
-func defineGlobalFunctions(global *EnvironmentNode) {
-	global.environment["clock"] = LoxFunction{
+// Define global / foreign / builtin functions for Lox
+func defineGlobalFunctions() {
+	globalEnvironment.bindings["clock"] = LoxFunction{
 		Lexeme: "clock",
 		arity:  0,
 		call: func(arguments []any) any {
@@ -23,7 +27,7 @@ func callLoxFunction(callee *LoxFunction, arguments []any) any {
 	return callee.call(arguments)
 }
 
-// check if the result is callable
+// Check if the evaluated expression is a Lox callable
 func isExpressionCallable(evaluated_expr any) (*LoxFunction, bool) {
 	if evaluated_expr == nil {
 		return nil, false

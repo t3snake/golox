@@ -2,16 +2,26 @@ package parser
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/codecrafters-io/interpreter-starter-go/app/loxerrors"
 	//lint:ignore ST1001 I dont care
 	. "github.com/codecrafters-io/interpreter-starter-go/app/token"
 )
 
+type FunctionKind string
+
+const (
+	FUNCTION FunctionKind = "function"
+	METHOD   FunctionKind = "method"
+)
+
+// Type of AST Node
 type NodeType string
 
 const (
 	// expression types
+
 	BINARY     NodeType = "binary"
 	UNARY      NodeType = "unary"
 	TERMINAL   NodeType = "terminal"
@@ -22,7 +32,10 @@ const (
 	ASSIGNMENT NodeType = "assignment"
 	LOGICALOP  NodeType = "logical_operator"
 	FNCALL     NodeType = "function_call"
+	FNDECL     NodeType = "function_declaration"
+
 	// statement types
+
 	BLOCK     NodeType = "block"
 	PRINTSTM  NodeType = "print_statement"
 	EXPRSTM   NodeType = "expression_statement"
@@ -31,42 +44,50 @@ const (
 	WHILESTMT NodeType = "while_statement"
 )
 
-// Abstract Syntax Tree Node
+// Abstract Syntax Tree Node.
 type AstNode struct {
 	Representation any
 	Type           NodeType
 	Children       []*AstNode
 }
 
-/*  Context Free Grammer from low to high precedence of resolution:
+// Representation for function declaration.
+type FunctionAstNode struct {
+	name       Token
+	parameters []Token
+}
+
+/*  Context Free Grammer
+*from low to high precedence of resolution*
+
 // Program level
+
 program        → declaration* EOF ;
-
-declaration    → varDecl
+declaration    → funDecl
+			   | varDecl
 			   | statement ;
-
-statement      → exprStmt
-			   | forStmt
-               | ifStmt
+funDecl        → "fun" function ;
+function       → IDENTIFIER "(" parameters? ")" block ;
+parameters     → IDENTIFIER ( "," IDENTIFIER )* ;
+varDecl        → "var" IDENTIFIER ( "=" expression )? ";" ;
+statement      → forStmt
 			   | whileStmt
-               | printStmt
-               | block ;
-
+			   | ifStmt
+			   | block
+               | exprStmt
+               | printStmt ;
 forStmt        → "for" "(" ( varDecl | exprStmt | ";" )
                  expression? ";"
                  expression? ")" statement ;
-
 whileStmt      → "while" "(" expression ")" statement ;
-
 ifStmt         → "if" "(" expression ")" statement
                ( "else" statement )? ;
-
 block		   → "{" declaration* "}"
-
 exprStmt       → expression ";" ;
 printStmt      → "print" expression ";" ;
 
 // Expression level
+
 expression     → assignment ;
 assignment     → IDENTIFIER "=" assignment
 			   | logic_or ;
@@ -84,11 +105,18 @@ primary        → NUMBER | STRING | "true" | "false" | "nil"
                | "(" expression ")" | IDENTIFIER ;
 */
 
+/*
+Defines overall program.
+
+	program → declaration* EOF ;
+*/
 func declaration() (*AstNode, error) {
 	var ast_node *AstNode
 	var err error
-	if match(VAR) {
-		ast_node, err = varDeclaration()
+	if match(FUN) {
+		ast_node, err = functionDeclaration(FUNCTION)
+	} else if match(VAR) {
+		ast_node, err = variableDeclaration()
 	} else {
 		ast_node, err = statement()
 	}
@@ -104,7 +132,81 @@ func declaration() (*AstNode, error) {
 	return ast_node, err
 }
 
-func varDeclaration() (*AstNode, error) {
+/*
+Defines function declaration. They can be of 2 kinds: function and methods.
+
+	funDecl    → "fun" function ;
+	function   → IDENTIFIER "(" parameters? ")" block ;
+	parameters → IDENTIFIER ( "," IDENTIFIER )* ;
+*/
+func functionDeclaration(kind FunctionKind) (*AstNode, error) {
+	func_name, err := consume(IDENTIFIER, fmt.Sprintf("Expect %s name.", kind))
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = consume(LEFT_PAREN, fmt.Sprintf("Expect '(' after %s name.", kind))
+	if err != nil {
+		return nil, err
+	}
+
+	params := []Token{}
+	if peek().Type != RIGHT_PAREN {
+		if len(params) >= 255 {
+			loxerrors.ParserError(peek(), "Cant have more than 255 parameters.")
+		}
+
+		param, err := consume(IDENTIFIER, "Expect parameter name.")
+		if err != nil {
+			return nil, err
+		}
+		params = append(params, param)
+
+		for match(COMMA) {
+			if len(params) >= 255 {
+				loxerrors.ParserError(peek(), "Cant have more than 255 parameters.")
+			}
+
+			param, err = consume(IDENTIFIER, "Expect parameter name.")
+			if err != nil {
+				return nil, err
+			}
+			params = append(params, param)
+		}
+	}
+
+	_, err = consume(RIGHT_PAREN, "Expect ')' after the parameters.")
+	if err != nil {
+		return nil, err
+	}
+
+	// block expects that left brace is already consumed.
+	_, err = consume(LEFT_BRACE, fmt.Sprintf("Expect '{' before %s body.", kind))
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := block()
+	if err != nil {
+		return nil, err
+	}
+
+	return &AstNode{
+		Representation: FunctionAstNode{
+			name:       func_name,
+			parameters: params,
+		},
+		Type:     FNDECL,
+		Children: []*AstNode{body},
+	}, nil
+}
+
+/*
+Defines variable declaration.
+
+	varDecl → "var" IDENTIFIER ( "=" expression )? ";" ;
+*/
+func variableDeclaration() (*AstNode, error) {
 	name, err := consume(IDENTIFIER, "Expect variable name.")
 	if err != nil {
 		return nil, err
@@ -141,6 +243,11 @@ func varDeclaration() (*AstNode, error) {
 
 }
 
+/*
+Defines a statement in Lox.
+
+	statement → forStmt | whileStmt | ifStmt | block | exprStmt | printStmt ;
+*/
 func statement() (*AstNode, error) {
 	if match(PRINT) {
 		return genericStatement(true)
@@ -157,6 +264,11 @@ func statement() (*AstNode, error) {
 	return genericStatement(false)
 }
 
+/*
+Defines for statement. Uses syntax desugaring into while, block and expressions behind the scenes.
+
+	forStmt → "for" "(" ( varDecl | exprStmt | ";" ) expression? ";" expression? ")" statement ;
+*/
 func forStatement() (*AstNode, error) {
 	_, err := consume(LEFT_PAREN, "Expect left parenthesis.")
 	if err != nil {
@@ -168,7 +280,7 @@ func forStatement() (*AstNode, error) {
 	if match(SEMICOLON) {
 		initializer = nil
 	} else if match(VAR) {
-		initializer, err = varDeclaration() // declaration will consume semicolon
+		initializer, err = variableDeclaration() // declaration will consume semicolon
 		if err != nil {
 			return nil, err
 		}
@@ -254,6 +366,44 @@ func forStatement() (*AstNode, error) {
 	}, nil
 }
 
+/*
+Defines while statement.
+
+	whileStmt      → "while" "(" expression ")" statement ;
+*/
+func whileStatement() (*AstNode, error) {
+	_, err := consume(LEFT_PAREN, "Expect left parenthesis")
+	if err != nil {
+		return nil, err
+	}
+
+	condition, err := expression()
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = consume(RIGHT_PAREN, "Expect right parenthesis")
+	if err != nil {
+		return nil, err
+	}
+
+	statement, err := statement()
+	if err != nil {
+		return nil, err
+	}
+
+	return &AstNode{
+		Representation: nil,
+		Type:           WHILESTMT,
+		Children:       []*AstNode{condition, statement},
+	}, nil
+}
+
+/*
+Defines if statement.
+
+	ifStmt → "if" "(" expression ")" statement ( "else" statement )? ;
+*/
 func ifStatement() (*AstNode, error) {
 	_, err := consume(LEFT_PAREN, "Expect left parenthesis")
 	if err != nil {
@@ -290,34 +440,11 @@ func ifStatement() (*AstNode, error) {
 	}, nil
 }
 
-func whileStatement() (*AstNode, error) {
-	_, err := consume(LEFT_PAREN, "Expect left parenthesis")
-	if err != nil {
-		return nil, err
-	}
+/*
+Defines block statement. Reused in if, for, functions etc.
 
-	condition, err := expression()
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = consume(RIGHT_PAREN, "Expect right parenthesis")
-	if err != nil {
-		return nil, err
-	}
-
-	statement, err := statement()
-	if err != nil {
-		return nil, err
-	}
-
-	return &AstNode{
-		Representation: nil,
-		Type:           WHILESTMT,
-		Children:       []*AstNode{condition, statement},
-	}, nil
-}
-
+	block → "{" declaration* "}"
+*/
 func block() (*AstNode, error) {
 	var statements []*AstNode
 
@@ -338,6 +465,12 @@ func block() (*AstNode, error) {
 	}, nil
 }
 
+/*
+Defines expression and print statements. Delegates to print if is_print is true.
+
+	exprStmt  → expression ";" ;
+	printStmt → "print" expression ";" ;
+*/
 func genericStatement(is_print bool) (*AstNode, error) {
 	var node_type NodeType
 	if is_print {

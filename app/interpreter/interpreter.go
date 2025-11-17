@@ -15,7 +15,8 @@ import (
 // Interpret list of statements or a program. Entry point of interpreter package
 func Interpret(statements []*parser.AstNode) error {
 	environment := initializeEnvironment(nil)
-	defineGlobalFunctions(environment)
+	globalEnvironment = environment
+	defineGlobalFunctions()
 
 	for _, statement := range statements {
 		_, err := EvaluateAst(statement, environment)
