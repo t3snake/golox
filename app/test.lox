@@ -12,3 +12,6 @@ fun sayHi(first, last) {
 }
 
 sayHi("Dear", "Reader");
+
+fun foo() {}
+print foo;

@@ -484,6 +484,8 @@ func PrintEvaluation(result any) string {
 		return strconv.FormatFloat(res, 'f', -1, 64)
 	case string:
 		return res
+	case *LoxFunction:
+		return res.toString()
 	default:
 		return "error: unknown evaluation while printing"
 	}
