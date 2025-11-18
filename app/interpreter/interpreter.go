@@ -32,6 +32,24 @@ func Interpret(statements []*parser.AstNode) error {
 func EvaluateAst(node *parser.AstNode, environment *EnvironmentNode) (any, error) {
 	// TODO typecheck here? but any return type
 	switch node.Type {
+	case parser.FNDECL:
+		if len(node.Children) != 1 {
+			return nil, fmt.Errorf("interpreter error: function declaration should have body as child")
+		}
+
+		body := node.Children[0]
+		func_node, ok := node.Representation.(parser.FunctionAstNode)
+		if !ok {
+			return nil, fmt.Errorf("interpreter error: function representation not of type FunctionAstNode")
+		}
+
+		lox_fn := constructLoxFunction(func_node, body)
+
+		// add to this environment or global?
+		environment.bindings[lox_fn.Lexeme] = lox_fn
+
+		return nil, nil
+
 	case parser.FNCALL:
 		if len(node.Children) < 1 {
 			return nil, fmt.Errorf("interpreter error: function call should atleast have a callee")
@@ -121,14 +139,7 @@ func EvaluateAst(node *parser.AstNode, environment *EnvironmentNode) (any, error
 
 	case parser.BLOCK:
 		child_environment := initializeEnvironment(environment)
-		for _, statement := range node.Children {
-			_, err := EvaluateAst(statement, child_environment)
-
-			if err != nil {
-				return nil, err
-			}
-		}
-		return nil, nil
+		return executeBlock(node, child_environment)
 
 	case parser.VARDECLR:
 		if len(node.Children) != 1 {
@@ -409,6 +420,17 @@ func EvaluateAst(node *parser.AstNode, environment *EnvironmentNode) (any, error
 		return nil, fmt.Errorf("interpreter error: unexpected Ast Node Type")
 	}
 
+}
+
+func executeBlock(block_body *parser.AstNode, environment *EnvironmentNode) (any, error) {
+	for _, statement := range block_body.Children {
+		_, err := EvaluateAst(statement, environment)
+
+		if err != nil {
+			return nil, err
+		}
+	}
+	return nil, nil
 }
 
 // Return if evaluation is truthy

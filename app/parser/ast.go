@@ -53,8 +53,8 @@ type AstNode struct {
 
 // Representation for function declaration.
 type FunctionAstNode struct {
-	name       Token
-	parameters []Token
+	Name       Token
+	Parameters []Token
 }
 
 /*  Context Free Grammer
@@ -193,8 +193,8 @@ func functionDeclaration(kind FunctionKind) (*AstNode, error) {
 
 	return &AstNode{
 		Representation: FunctionAstNode{
-			name:       func_name,
-			parameters: params,
+			Name:       func_name,
+			Parameters: params,
 		},
 		Type:     FNDECL,
 		Children: []*AstNode{body},

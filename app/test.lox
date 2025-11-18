@@ -6,3 +6,9 @@ bar = world = 13 + 70 * 41;
 print bar;
 print world;
 print clock();
+
+fun sayHi(first, last) {
+  print "Hi, " + first + " " + last + "!";
+}
+
+sayHi("Dear", "Reader");
