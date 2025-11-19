@@ -7,6 +7,17 @@ import (
 	"github.com/codecrafters-io/interpreter-starter-go/app/parser"
 )
 
+// Use special error type to propogate error till the function call
+type ErrReturnSignal struct {
+	message string // will be return
+	value   any    // will be the expression evaluated
+}
+
+// Satisfies error interface for ErrReturnSignal
+func (e *ErrReturnSignal) Error() string {
+	return e.message
+}
+
 // Lox function representation for interpreter.
 type LoxFunction struct {
 	Lexeme   string
@@ -40,7 +51,14 @@ func constructLoxFunction(func_ast_node parser.FunctionAstNode, block *parser.As
 				func_environment.bindings[param.Lexeme] = arguments[idx]
 			}
 
-			executeBlock(block, func_environment)
+			_, err := executeBlock(block, func_environment)
+			if err != nil {
+				returnVal, ok := err.(*ErrReturnSignal)
+				if !ok {
+					return err
+				}
+				return returnVal.value
+			}
 
 			return nil
 		},

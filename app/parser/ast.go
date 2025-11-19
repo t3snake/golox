@@ -41,7 +41,8 @@ const (
 	EXPRSTM   NodeType = "expression_statement"
 	VARDECLR  NodeType = "variable_declaration"
 	IFSTMT    NodeType = "if_statement"
-	WHILESTMT NodeType = "while_statement"
+	WHILESTM  NodeType = "while_statement"
+	RETURNSTM NodeType = "return_statement"
 )
 
 // Abstract Syntax Tree Node.
@@ -75,7 +76,8 @@ statement      → forStmt
 			   | ifStmt
 			   | block
                | exprStmt
-               | printStmt ;
+               | printStmt
+			   | returnStmt ;
 forStmt        → "for" "(" ( varDecl | exprStmt | ";" )
                  expression? ";"
                  expression? ")" statement ;
@@ -85,6 +87,7 @@ ifStmt         → "if" "(" expression ")" statement
 block		   → "{" declaration* "}"
 exprStmt       → expression ";" ;
 printStmt      → "print" expression ";" ;
+returnStmt     → "return" expression? ";" ;
 
 // Expression level
 
@@ -246,11 +249,13 @@ func variableDeclaration() (*AstNode, error) {
 /*
 Defines a statement in Lox.
 
-	statement → forStmt | whileStmt | ifStmt | block | exprStmt | printStmt ;
+	statement → forStmt | whileStmt | ifStmt | block | exprStmt | printStmt | returnStmt ;
 */
 func statement() (*AstNode, error) {
 	if match(PRINT) {
 		return genericStatement(true)
+	} else if match(RETURN) {
+		return returnStatement()
 	} else if match(FOR) {
 		return forStatement()
 	} else if match(IF) {
@@ -348,7 +353,7 @@ func forStatement() (*AstNode, error) {
 	// generate core while statement
 	while := &AstNode{
 		Representation: nil,
-		Type:           WHILESTMT,
+		Type:           WHILESTM,
 		Children:       []*AstNode{condition, while_block},
 	}
 
@@ -394,7 +399,7 @@ func whileStatement() (*AstNode, error) {
 
 	return &AstNode{
 		Representation: nil,
-		Type:           WHILESTMT,
+		Type:           WHILESTM,
 		Children:       []*AstNode{condition, statement},
 	}, nil
 }
@@ -491,7 +496,35 @@ func genericStatement(is_print bool) (*AstNode, error) {
 		Type:           node_type,
 		Children:       []*AstNode{expr_value},
 	}, nil
+}
 
+/*
+Defines return statements.
+
+	returnStmt → "return" expression? ";" ;
+*/
+func returnStatement() (*AstNode, error) {
+	var returnVal *AstNode = nil
+	var err error
+
+	// check if empty return
+	if peek().Type != SEMICOLON {
+		returnVal, err = expression()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	_, err = consume(SEMICOLON, "Expect semicolon at end of return statement.")
+	if err != nil {
+		return nil, err
+	}
+
+	return &AstNode{
+		Representation: nil,
+		Type:           RETURNSTM,
+		Children:       []*AstNode{returnVal},
+	}, nil
 }
 
 func expression() (*AstNode, error) {

@@ -15,3 +15,6 @@ sayHi("Dear", "Reader");
 
 fun foo() {}
 print foo;
+
+fun foo2() { return 10; }
+print foo2();

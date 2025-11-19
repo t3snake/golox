@@ -32,6 +32,28 @@ func Interpret(statements []*parser.AstNode) error {
 func EvaluateAst(node *parser.AstNode, environment *EnvironmentNode) (any, error) {
 	// TODO typecheck here? but any return type
 	switch node.Type {
+	case parser.RETURNSTM:
+		if len(node.Children) != 1 {
+			return nil, fmt.Errorf("interpreter error: return statement should have exactly 1 child")
+		}
+
+		var evaluated_return any
+		var err error
+
+		if node.Children[0] == nil {
+			evaluated_return = nil
+		} else {
+			evaluated_return, err = EvaluateAst(node.Children[0], environment)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		return nil, &ErrReturnSignal{
+			message: "return",
+			value:   evaluated_return,
+		}
+
 	case parser.FNDECL:
 		if len(node.Children) != 1 {
 			return nil, fmt.Errorf("interpreter error: function declaration should have body as child")
@@ -93,7 +115,7 @@ func EvaluateAst(node *parser.AstNode, environment *EnvironmentNode) (any, error
 		return_val := callLoxFunction(lox_func, arguments)
 		return return_val, nil
 
-	case parser.WHILESTMT:
+	case parser.WHILESTM:
 		if len(node.Children) != 2 {
 			return nil, fmt.Errorf("interpreter error: not exactly 2 children for while statement")
 		}
