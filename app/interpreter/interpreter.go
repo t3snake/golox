@@ -49,6 +49,9 @@ func EvaluateAst(node *parser.AstNode, environment *EnvironmentNode) (any, error
 			}
 		}
 
+		// pass return values as a custom error which propogates up the call stack until function call
+		// this is required since there could be lot of call stack up the chain like nested if, for, while
+		// which all needs to be bypassed
 		return nil, &ErrReturnSignal{
 			message: "return",
 			value:   evaluated_return,
@@ -65,7 +68,7 @@ func EvaluateAst(node *parser.AstNode, environment *EnvironmentNode) (any, error
 			return nil, fmt.Errorf("interpreter error: function representation not of type FunctionAstNode")
 		}
 
-		lox_fn := constructLoxFunction(func_node, body)
+		lox_fn := constructLoxFunction(func_node, body, *environment)
 
 		// add to this environment or global?
 		environment.bindings[lox_fn.Lexeme] = lox_fn
