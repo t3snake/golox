@@ -182,6 +182,7 @@ func EvaluateAst(node *parser.AstNode, environment *EnvironmentNode) (any, error
 		}
 
 		return nil, err
+
 	case parser.PRINTSTM:
 		if len(node.Children) != 1 {
 			return nil, fmt.Errorf("interpreter error: not 1 child for print statement node")
