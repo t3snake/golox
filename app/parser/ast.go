@@ -521,7 +521,7 @@ func returnStatement() (*AstNode, error) {
 	}
 
 	return &AstNode{
-		Representation: SEMICOLON,
+		Representation: previous(),
 		Type:           RETURNSTM,
 		Children:       []*AstNode{returnVal},
 	}, nil
