@@ -279,7 +279,7 @@ func resolveReturnStmt(node *parser.AstNode) error {
 		return fmt.Errorf("resolver error: not exactly 1 child of return statement.")
 	}
 
-	if current_func_type != NONE {
+	if current_func_type == NONE {
 		tok, ok := node.Representation.(Token)
 		if !ok {
 			return fmt.Errorf("resolver error: representation of return statement was not Token.")
