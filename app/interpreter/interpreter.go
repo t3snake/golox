@@ -133,7 +133,7 @@ func EvaluateAst(node *parser.AstNode, environment *EnvironmentNode) (any, error
 				break
 			}
 
-			_, err = EvaluateAst(node.Children[1], environment)
+			_, err = EvaluateAst(node.Children[1], environment) // body
 			if err != nil {
 				return nil, err
 			}
@@ -199,7 +199,7 @@ func EvaluateAst(node *parser.AstNode, environment *EnvironmentNode) (any, error
 
 	case parser.EXPRSTM:
 		if len(node.Children) != 1 {
-			return nil, fmt.Errorf("interpreter error: not exactly 1 child for print statement node")
+			return nil, fmt.Errorf("interpreter error: not exactly 1 child for expression statement node")
 		}
 
 		_, err := EvaluateAst(node.Children[0], environment)
@@ -225,14 +225,10 @@ func EvaluateAst(node *parser.AstNode, environment *EnvironmentNode) (any, error
 		}
 
 		exists := assignValueIfKeyExists(l_token.Lexeme, value, environment, false)
-		// _, ok = environment[l_token.Lexeme]
 		if !exists {
 			err = loxerrors.RuntimeError(l_token, fmt.Sprintf("Undefined variable %s.", l_token.Lexeme))
 			return nil, err
 		}
-
-		// main assignment
-		// environment[l_token.Lexeme] = value
 
 		return value, nil
 

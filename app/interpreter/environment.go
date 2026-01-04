@@ -1,11 +1,22 @@
 package interpreter
 
+import "github.com/codecrafters-io/interpreter-starter-go/app/parser"
+
 type EnvironmentNode struct {
 	bindings map[string]any
 	parent   *EnvironmentNode
 }
 
+// Global Environment that stores variables in global state.
 var globalEnvironment *EnvironmentNode
+
+// Local Scope that stores resolutions of variables and the depth at which they resolve, which is calculated during the resolver step.
+var local_scope map[*parser.AstNode]int
+
+// Exposes resolve method which allows resolver step to store resolution information for subsequent use in intepreter.
+func Resolve(expr_node *parser.AstNode, depth int) {
+	local_scope[expr_node] = depth
+}
 
 func initializeEnvironment(parent *EnvironmentNode) *EnvironmentNode {
 	return &EnvironmentNode{
