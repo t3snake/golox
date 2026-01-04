@@ -120,7 +120,7 @@ func resolveVarDecr(node *parser.AstNode) error {
 		return fmt.Errorf("resolver error: not exactly 1 child of node type var declaration.")
 	}
 
-	if var_name, ok := node.Representation.(string); ok {
+	if var_name, ok := node.Representation.(Token); ok {
 		declare(var_name)
 		// only declare and dont define for resolve to catch bugs such as 'var a = a;'
 		err := resolveAst(node.Children[0])
@@ -128,7 +128,7 @@ func resolveVarDecr(node *parser.AstNode) error {
 		return err
 	}
 
-	return fmt.Errorf("resolver error: node representation for var declaration is not string.")
+	return fmt.Errorf("resolver error: node representation for var declaration is not Token.")
 }
 
 // Resolve a variable expression, ie. access of variable. Returns error if access is done in its own initialization.
@@ -190,13 +190,15 @@ func resolveFuncDeclr(node *parser.AstNode) error {
 		return fmt.Errorf("resolver error: not exactly 1 child for function declaration.")
 	}
 
-	// no need to declare since a function declaration can legally refer to itself before resolution
+	// can immediately define, since a function declaration can legally refer to itself before resolution
 	// ie. recursion
-	define(func_node.Name.Lexeme)
+	declare(func_node.Name)
+	define(func_node.Name)
 
 	beginScope()
 	for _, param := range func_node.Parameters {
-		define(param.Lexeme) // no need to declare since initialize bug would not happen with func params
+		declare(param)
+		define(param) // can immediately define since initialize bug would not happen with func params
 	}
 
 	// This is different from interpreter where we only interpret body in a call
@@ -335,22 +337,26 @@ func resolveLogicalOpExpr(node *parser.AstNode) error {
 }
 
 // Puts a variable in scope and sets it as not processed. This is done to prevent outer variables to be referred during initialization.
-func declare(identifier_name string) {
+func declare(identifier Token) {
 	if scope_top == -1 { // empty scope stack case
 		return
 	}
 
 	scope := scope_stack[scope_top]
-	scope[identifier_name] = false // put in scope but not yet processed/resolved
+	_, ok := scope[identifier.Lexeme]
+	if ok {
+		loxerrors.RuntimeError(identifier, "Already a variable with this name in scope.")
+	}
+	scope[identifier.Lexeme] = false // put in scope but not yet processed/resolved
 }
 
 // Puts a variable in scope and sets it as processed. This is done to prevent self variable usage during its initialization.
 // Once it is defined, it can be safely accessed.
-func define(identifier_name string) {
+func define(identifier Token) {
 	if scope_top == -1 {
 		return
 	}
 
 	scope := scope_stack[scope_top]
-	scope[identifier_name] = true // marked as processed/resolved
+	scope[identifier.Lexeme] = true // marked as processed/resolved
 }

@@ -174,8 +174,8 @@ func EvaluateAst(node *parser.AstNode, environment *EnvironmentNode) (any, error
 		evaluated_value, err := EvaluateAst(node.Children[0], environment)
 		if err == nil {
 			switch repr_type := node.Representation.(type) {
-			case string:
-				assignVariable(repr_type, evaluated_value, environment, node)
+			case Token:
+				assignVariable(repr_type.Lexeme, evaluated_value, environment, node)
 			default:
 				return nil, fmt.Errorf("interpreter error: did not recieve a string representation for var declr node")
 			}

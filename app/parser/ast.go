@@ -239,7 +239,7 @@ func variableDeclaration() (*AstNode, error) {
 	}
 
 	return &AstNode{
-		Representation: name.Lexeme,
+		Representation: name,
 		Type:           VARDECLR,
 		Children:       []*AstNode{initializer},
 	}, nil
