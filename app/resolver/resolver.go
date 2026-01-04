@@ -13,7 +13,19 @@ import (
 
 // Stack representing scope. max limit set to 100 (arbitary)
 var scope_stack []map[string]bool = make([]map[string]bool, 100)
+
+// Points to top of stack, -1 signifies empty
 var scope_top int = -1
+
+type FunctionType int
+
+const (
+	NONE     FunctionType = 0
+	FUNCTION FunctionType = 1
+)
+
+// Current function type
+var current_func_type FunctionType = NONE
 
 // Pushes a new scope into scope stack.
 func beginScope() {
@@ -186,6 +198,9 @@ func resolveFuncDeclr(node *parser.AstNode) error {
 
 	// TODO: make a separate method for code below for reuse with class methods
 
+	enclosing_func_type := current_func_type
+	current_func_type = FUNCTION
+
 	if len(node.Children) != 1 {
 		return fmt.Errorf("resolver error: not exactly 1 child for function declaration.")
 	}
@@ -218,6 +233,8 @@ func resolveFuncDeclr(node *parser.AstNode) error {
 	}
 
 	endScope()
+
+	current_func_type = enclosing_func_type
 	return nil
 }
 
@@ -260,6 +277,14 @@ func resolveIfStmt(node *parser.AstNode) error {
 func resolveReturnStmt(node *parser.AstNode) error {
 	if len(node.Children) != 1 {
 		return fmt.Errorf("resolver error: not exactly 1 child of return statement.")
+	}
+
+	if current_func_type != NONE {
+		tok, ok := node.Representation.(Token)
+		if !ok {
+			return fmt.Errorf("resolver error: representation of return statement was not Token.")
+		}
+		loxerrors.RuntimeError(tok, "Can't return from top level code.")
 	}
 
 	if node.Children[0] != nil {
