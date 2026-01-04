@@ -111,7 +111,7 @@ func run(command, source string) {
 
 		had_runtime_error := loxerrors.GetRuntimeErrorState()
 		if *had_runtime_error {
-			os.Exit(70)
+			os.Exit(65)
 		} else if err != nil {
 			fmt.Fprintf(os.Stderr, "unexpected error: %s\n", err.Error())
 		}
