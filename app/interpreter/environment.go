@@ -79,7 +79,12 @@ func assignVariable(key string, value any, node *EnvironmentNode, expr *parser.A
 
 	if !ok {
 		// if not found look in global environment
-		return assignValueIfKeyExists(key, value, node, expr.Type == parser.VARDECLR)
+		if expr.Type == parser.VARDECLR {
+			return assignValueIfKeyExists(key, value, node, true)
+		} else {
+			global_environment.bindings[key] = value
+			return true
+		}
 	}
 
 	target_env := getEnvAtDepthInScope(jumps, node)
