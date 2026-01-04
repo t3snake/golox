@@ -18,14 +18,6 @@ func Interpret(statements []*parser.AstNode) error {
 	global_environment = environment
 	defineGlobalFunctions()
 
-	//debug
-	fmt.Println("local scopes")
-	for key, val := range local_scope {
-		fmt.Println(key)
-		fmt.Println(val)
-		fmt.Print("\n\n")
-	}
-
 	for _, statement := range statements {
 		_, err := EvaluateAst(statement, environment)
 		if err != nil {
