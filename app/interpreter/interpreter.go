@@ -15,8 +15,16 @@ import (
 // Interpret list of statements or a program. Entry point of interpreter package
 func Interpret(statements []*parser.AstNode) error {
 	environment := initializeEnvironment(nil)
-	globalEnvironment = environment
+	global_environment = environment
 	defineGlobalFunctions()
+
+	//debug
+	fmt.Println("local scopes")
+	for key, val := range local_scope {
+		fmt.Println(key)
+		fmt.Println(val)
+		fmt.Print("\n\n")
+	}
 
 	for _, statement := range statements {
 		_, err := EvaluateAst(statement, environment)
@@ -68,7 +76,7 @@ func EvaluateAst(node *parser.AstNode, environment *EnvironmentNode) (any, error
 			return nil, fmt.Errorf("interpreter error: function representation not of type FunctionAstNode")
 		}
 
-		lox_fn := constructLoxFunction(func_node, body, *environment)
+		lox_fn := constructLoxFunction(func_node, body, environment)
 
 		// add to this environment or global?
 		environment.bindings[lox_fn.Lexeme] = lox_fn
@@ -175,7 +183,7 @@ func EvaluateAst(node *parser.AstNode, environment *EnvironmentNode) (any, error
 		if err == nil {
 			switch repr_type := node.Representation.(type) {
 			case string:
-				assignValueIfKeyExists(repr_type, evaluated_value, environment, true)
+				assignVariable(repr_type, evaluated_value, environment, node)
 			default:
 				return nil, fmt.Errorf("interpreter error: did not recieve a string representation for var declr node")
 			}
@@ -224,7 +232,7 @@ func EvaluateAst(node *parser.AstNode, environment *EnvironmentNode) (any, error
 			return nil, fmt.Errorf("interpreter error: did not receive a token as Representation in assignment node")
 		}
 
-		exists := assignValueIfKeyExists(l_token.Lexeme, value, environment, false)
+		exists := assignVariable(l_token.Lexeme, value, environment, node)
 		if !exists {
 			err = loxerrors.RuntimeError(l_token, fmt.Sprintf("Undefined variable %s.", l_token.Lexeme))
 			return nil, err
@@ -413,7 +421,7 @@ func EvaluateAst(node *parser.AstNode, environment *EnvironmentNode) (any, error
 		if !ok {
 			return nil, fmt.Errorf("interpreter error: identifier lexeme not a string")
 		}
-		target_env, val := getValueIfKeyInEnvironment(var_token.Lexeme, environment)
+		target_env, val := lookupVariable(var_token, node, environment)
 		if target_env == nil {
 			// using a variable that is not defined: we report runtime error
 			err := loxerrors.RuntimeError(var_token, fmt.Sprintf("Undefined variable '%s'", var_token.Lexeme))

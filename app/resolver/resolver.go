@@ -30,7 +30,7 @@ func endScope() {
 	scope_top -= 1
 }
 
-// Entry point of resolver. Takes a list of statements and does resolving and binding at compile time.
+// Entry point of resolver package. Takes a list of statements and does resolving and binding at compile time.
 func Resolve(statements []*parser.AstNode) error {
 	for _, statement := range statements {
 		err := resolveAst(statement)
@@ -62,8 +62,7 @@ func resolveAst(node *parser.AstNode) error {
 	case parser.FNDECL:
 		err = resolveFuncDeclr(node)
 
-	case parser.EXPRSTM:
-	case parser.PRINTSTM: // same struct as expression stmt
+	case parser.EXPRSTM, parser.PRINTSTM: // same struct as expression stmt
 		err = resolveExprStmt(node)
 
 	case parser.IFSTMT:
@@ -89,13 +88,10 @@ func resolveAst(node *parser.AstNode) error {
 	case parser.LOGICALOP:
 		err = resolveLogicalOpExpr(node)
 
-	case parser.GROUP:
-	case parser.UNARY:
+	case parser.GROUP, parser.UNARY:
 		err = resolveExprStmt(node) // same struct as expression stmt
 
-	case parser.NUMBERNODE:
-	case parser.STRINGNODE:
-	case parser.TERMINAL:
+	case parser.NUMBERNODE, parser.STRINGNODE, parser.TERMINAL:
 		return nil
 
 	default:
@@ -103,6 +99,36 @@ func resolveAst(node *parser.AstNode) error {
 	}
 
 	return err
+}
+
+// Resolve Block of statement. This is done under a newly pushed scope and pops scope after block is resolved.
+func resolveBlock(node *parser.AstNode) error {
+	beginScope()
+	for _, statement := range node.Children {
+		err := resolveAst(statement)
+		if err != nil {
+			return err
+		}
+	}
+	endScope()
+	return nil
+}
+
+// Resolve variable declaration. Declares to avoid using outer variable and defines to avoid using variable in initializer itself.
+func resolveVarDecr(node *parser.AstNode) error {
+	if len(node.Children) != 1 {
+		return fmt.Errorf("resolver error: not exactly 1 child of node type var declaration.")
+	}
+
+	if var_name, ok := node.Representation.(string); ok {
+		declare(var_name)
+		// only declare and dont define for resolve to catch bugs such as 'var a = a;'
+		err := resolveAst(node.Children[0])
+		define(var_name)
+		return err
+	}
+
+	return fmt.Errorf("resolver error: node representation for var declaration is not string.")
 }
 
 // Resolve a variable expression, ie. access of variable. Returns error if access is done in its own initialization.
@@ -125,9 +151,10 @@ func resolveVariable(node *parser.AstNode) error {
 
 // Calculate the depth at which the expression node resolves and store it for use in interpreter.
 func resolveLocal(expr_node *parser.AstNode, name Token) {
-	for i := len(scope_stack) - 1; i >= 0; i-- {
+	for i := scope_top; i >= 0; i-- {
 		if _, ok := scope_stack[i][name.Lexeme]; ok {
-			interpreter.Resolve(expr_node, len(scope_stack)-1-i)
+			interpreter.Resolve(expr_node, scope_top-i)
+			return
 		}
 	}
 }
@@ -174,9 +201,18 @@ func resolveFuncDeclr(node *parser.AstNode) error {
 
 	// This is different from interpreter where we only interpret body in a call
 	// in case of resolver ie. static analysis, we immediately go through the body once
-	err := resolveAst(node.Children[0]) // func body
-	if err != nil {
-		return err
+	if node.Children[0].Type == parser.BLOCK {
+		// if block resolve as list of statement and not block since block creates a new scope
+		// This is an implementation difference with the book Java implementation
+		err := Resolve(node.Children[0].Children)
+		if err != nil {
+			return err
+		}
+	} else {
+		err := resolveAst(node.Children[0]) // func body
+		if err != nil {
+			return err
+		}
 	}
 
 	endScope()
@@ -296,36 +332,6 @@ func resolveLogicalOpExpr(node *parser.AstNode) error {
 
 	err = resolveAst(node.Children[1]) // right expr
 	return err
-}
-
-// Resolve variable declaration. Declares to avoid using outer variable and defines to avoid using variable in initializer itself.
-func resolveVarDecr(node *parser.AstNode) error {
-	if len(node.Children) != 1 {
-		return fmt.Errorf("resolver error: not exactly 1 child of node type var declaration.")
-	}
-
-	if var_name, ok := node.Representation.(string); ok {
-		declare(var_name)
-		// only declare and dont define for resolve to catch bugs such as 'var a = a;'
-		err := resolveAst(node.Children[0])
-		define(var_name)
-		return err
-	}
-
-	return fmt.Errorf("resolver error: node representation for var declaration is not string.")
-}
-
-// Resolve Block of statement. This is done under a newly pushed scope and pops scope after block is resolved.
-func resolveBlock(node *parser.AstNode) error {
-	beginScope()
-	for _, statement := range node.Children {
-		err := resolveAst(statement)
-		if err != nil {
-			return err
-		}
-	}
-	endScope()
-	return nil
 }
 
 // Puts a variable in scope and sets it as not processed. This is done to prevent outer variables to be referred during initialization.

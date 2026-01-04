@@ -7,6 +7,7 @@ import (
 	"github.com/codecrafters-io/interpreter-starter-go/app/interpreter"
 	"github.com/codecrafters-io/interpreter-starter-go/app/loxerrors"
 	"github.com/codecrafters-io/interpreter-starter-go/app/parser"
+	"github.com/codecrafters-io/interpreter-starter-go/app/resolver"
 	"github.com/codecrafters-io/interpreter-starter-go/app/scanner"
 	"github.com/codecrafters-io/interpreter-starter-go/app/token"
 )
@@ -103,14 +104,24 @@ func run(command, source string) {
 			os.Exit(65)
 		}
 
-		err := interpreter.Interpret(ast)
+		// start local scope so resolver can store variable resolution here
+		interpreter.InitializeScope()
+
+		err := resolver.Resolve(ast)
 
 		had_runtime_error := loxerrors.GetRuntimeErrorState()
+		if *had_runtime_error {
+			os.Exit(70)
+		} else if err != nil {
+			fmt.Fprintf(os.Stderr, "unexpected error: %s\n", err.Error())
+		}
+
+		err = interpreter.Interpret(ast)
 
 		if *had_runtime_error {
 			os.Exit(70)
 		} else if err != nil {
-			fmt.Fprintf(os.Stderr, "unexpected error: %s\n", err)
+			fmt.Fprintf(os.Stderr, "unexpected error: %s\n", err.Error())
 		}
 	}
 

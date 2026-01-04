@@ -28,7 +28,7 @@ type LoxFunction struct {
 
 // Define global / foreign / builtin functions for Lox
 func defineGlobalFunctions() {
-	globalEnvironment.bindings["clock"] = &LoxFunction{
+	global_environment.bindings["clock"] = &LoxFunction{
 		Lexeme: "clock",
 		arity:  0,
 		call: func(arguments []any) any {
@@ -41,12 +41,12 @@ func defineGlobalFunctions() {
 	}
 }
 
-func constructLoxFunction(func_ast_node parser.FunctionAstNode, block *parser.AstNode, environment EnvironmentNode) *LoxFunction {
+func constructLoxFunction(func_ast_node parser.FunctionAstNode, block *parser.AstNode, environment *EnvironmentNode) *LoxFunction {
 	return &LoxFunction{
 		Lexeme: func_ast_node.Name.Lexeme,
 		arity:  len(func_ast_node.Parameters),
 		call: func(arguments []any) any {
-			func_environment := initializeEnvironment(&environment)
+			func_environment := initializeEnvironment(environment)
 			for idx, param := range func_ast_node.Parameters {
 				func_environment.bindings[param.Lexeme] = arguments[idx]
 			}
