@@ -40,7 +40,7 @@ func EvaluateAst(node *parser.AstNode, environment *EnvironmentNode) (any, error
 
 		// define binding so class can refer itself during declaration
 		environment.bindings[class_name.Lexeme] = nil
-		class := LoxClass{
+		class := &LoxClass{
 			name: class_name.Lexeme,
 			toString: func() string {
 				return class_name.Lexeme
