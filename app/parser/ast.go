@@ -43,6 +43,7 @@ const (
 	IFSTMT    NodeType = "if_statement"
 	WHILESTM  NodeType = "while_statement"
 	RETURNSTM NodeType = "return_statement"
+	CLASSDECL NodeType = "class_declaration"
 )
 
 // Abstract Syntax Tree Node.
@@ -64,9 +65,11 @@ type FunctionAstNode struct {
 // Program level
 
 program        → declaration* EOF ;
-declaration    → funDecl
+declaration    → classDecl
+			   | funDecl
 			   | varDecl
 			   | statement ;
+classDecl      → "class" IDENTIFIER "{" function * "}" ; // No fun keyword needed for class methods.
 funDecl        → "fun" function ;
 function       → IDENTIFIER "(" parameters? ")" block ;
 parameters     → IDENTIFIER ( "," IDENTIFIER )* ;
@@ -116,7 +119,9 @@ Defines overall program.
 func declaration() (*AstNode, error) {
 	var ast_node *AstNode
 	var err error
-	if match(FUN) {
+	if match(CLASS) {
+		ast_node, err = classDeclaration()
+	} else if match(FUN) {
 		ast_node, err = functionDeclaration(FUNCTION)
 	} else if match(VAR) {
 		ast_node, err = variableDeclaration()
@@ -133,6 +138,43 @@ func declaration() (*AstNode, error) {
 	}
 
 	return ast_node, err
+}
+
+/*
+Defines class declaration.
+
+	classDecl → "class" IDENTIFIER "{" function* "}" ;
+*/
+func classDeclaration() (*AstNode, error) {
+	class_name, err := consume(IDENTIFIER, "Expect class name.")
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = consume(LEFT_BRACE, "Expect '{' before class body.")
+	if err != nil {
+		return nil, err
+	}
+
+	methods := make([]*AstNode, 0)
+	// Check EOF also so the loop doesnt get stuck in infinite loop
+	for peek().Type != EOF && peek().Type != RIGHT_BRACE {
+		method, err := functionDeclaration(METHOD)
+		if err != nil {
+			return nil, err
+		}
+		methods = append(methods, method)
+	}
+
+	_, err = consume(RIGHT_BRACE, "Expect '}' after class body.")
+	if err != nil {
+		return nil, err
+	}
+	return &AstNode{
+		Representation: class_name,
+		Type:           CLASSDECL,
+		Children:       methods,
+	}, nil
 }
 
 /*

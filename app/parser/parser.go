@@ -65,14 +65,7 @@ func synchronize() {
 		}
 
 		switch peek().Type {
-		case CLASS:
-		case FUN:
-		case VAR:
-		case FOR:
-		case IF:
-		case WHILE:
-		case PRINT:
-		case RETURN:
+		case CLASS, FUN, VAR, FOR, IF, WHILE, PRINT, RETURN:
 			return
 		}
 
