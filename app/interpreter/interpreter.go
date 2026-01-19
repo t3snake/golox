@@ -32,6 +32,25 @@ func Interpret(statements []*parser.AstNode) error {
 func EvaluateAst(node *parser.AstNode, environment *EnvironmentNode) (any, error) {
 	// TODO typecheck here? but any return type
 	switch node.Type {
+	case parser.CLASSDECL:
+		class_name, ok := node.Representation.(Token)
+		if !ok {
+			return nil, fmt.Errorf("interpreter error: representation of class declaration not a token.")
+		}
+
+		// define binding so class can refer itself during declaration
+		environment.bindings[class_name.Lexeme] = nil
+		class := LoxClass{
+			name: class_name.Lexeme,
+			toString: func() string {
+				return class_name.Lexeme
+			},
+		}
+		// store class representation for runtime in environment
+		environment.bindings[class_name.Lexeme] = class
+
+		return nil, nil
+
 	case parser.RETURNSTM:
 		if len(node.Children) != 1 {
 			return nil, fmt.Errorf("interpreter error: return statement should have exactly 1 child")
@@ -507,6 +526,8 @@ func PrintEvaluation(result any) string {
 	case string:
 		return res
 	case *LoxFunction:
+		return res.toString()
+	case *LoxClass:
 		return res.toString()
 	default:
 		return "error: unknown evaluation while printing"

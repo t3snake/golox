@@ -89,6 +89,9 @@ func resolveAst(node *parser.AstNode) error {
 	case parser.FNCALL:
 		err = resolveFuncCall(node)
 
+	case parser.CLASSDECL:
+		err = resolveClassDecl(node)
+
 	// Expression cases
 
 	case parser.VARIABLE:
@@ -326,6 +329,19 @@ func resolveFuncCall(node *parser.AstNode) error {
 			return err
 		}
 	}
+
+	return nil
+}
+
+// Resolves class declaration
+func resolveClassDecl(node *parser.AstNode) error {
+	class_name, ok := node.Representation.(Token)
+	if !ok {
+		return fmt.Errorf("representation for class node is not a token.")
+	}
+
+	declare(class_name)
+	define(class_name)
 
 	return nil
 }
