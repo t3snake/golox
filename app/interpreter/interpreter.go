@@ -40,12 +40,9 @@ func EvaluateAst(node *parser.AstNode, environment *EnvironmentNode) (any, error
 
 		// define binding so class can refer itself during declaration
 		environment.bindings[class_name.Lexeme] = nil
-		class := &LoxClass{
-			name: class_name.Lexeme,
-			toString: func() string {
-				return class_name.Lexeme
-			},
-		}
+
+		class := constructLoxClass(class_name.Lexeme)
+
 		// store class representation for runtime in environment
 		environment.bindings[class_name.Lexeme] = class
 
@@ -528,6 +525,8 @@ func PrintEvaluation(result any) string {
 	case *LoxFunction:
 		return res.toString()
 	case *LoxClass:
+		return res.toString()
+	case LoxInstance:
 		return res.toString()
 	default:
 		return "error: unknown evaluation while printing"

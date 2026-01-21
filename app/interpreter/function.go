@@ -87,6 +87,9 @@ func isExpressionCallable(evaluated_expr any) (*LoxFunction, bool) {
 		return nil, false
 	case *LoxFunction:
 		return callee, true
+	case *LoxClass:
+		// class constructor / instance call
+		return &callee.LoxFunction, true
 	default:
 		return nil, false
 	}
