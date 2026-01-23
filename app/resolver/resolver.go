@@ -94,6 +94,9 @@ func resolveAst(node *parser.AstNode) error {
 
 	// Expression cases
 
+	case parser.GETTER:
+		err = resolveGetter(node)
+
 	case parser.VARIABLE:
 		err = resolveVariable(node)
 
@@ -344,6 +347,14 @@ func resolveClassDecl(node *parser.AstNode) error {
 	define(class_name)
 
 	return nil
+}
+
+// Resolves getter expressions.
+func resolveGetter(node *parser.AstNode) error {
+	if len(node.Children) != 1 {
+		return fmt.Errorf("resolver error: getter node does not have exactly 1 child.")
+	}
+	return resolveAst(node.Children[0])
 }
 
 // Resolves binary expressions.

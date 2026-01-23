@@ -33,6 +33,7 @@ const (
 	LOGICALOP  NodeType = "logical_operator"
 	FNCALL     NodeType = "function_call"
 	FNDECL     NodeType = "function_declaration"
+	GETTER     NodeType = "getter"
 
 	// statement types
 
@@ -105,7 +106,7 @@ term           → factor ( ( "-" | "+" ) factor )* ;
 factor         → unary ( ( "/" | "*" ) unary )* ;
 unary          → ( "!" | "-" ) unary
                | call ;
-call           → primary ( "(" arguments? ")" )* ;
+call           → primary ( "(" arguments? ")" | "." IDENTIFIER )* ;
 arguments      → expression ( "," expression )* ;
 primary        → NUMBER | STRING | "true" | "false" | "nil"
                | "(" expression ")" | IDENTIFIER ;
@@ -777,15 +778,26 @@ func unary() (*AstNode, error) {
 	return functionCall()
 }
 
+/*
+Defines Function call or chain into OOPS getters
+
+	call → primary ( "(" arguments? ")" | "." IDENTIFIER )* ;
+*/
 func functionCall() (*AstNode, error) {
-	function, err := primary()
+	expr, err := primary()
 	if err != nil {
 		return nil, err
 	}
 
+	// parses statement like: egg.scramble(3).with(cheddar)
 	for {
 		if match(LEFT_PAREN) {
-			function, err = finishCall(function)
+			expr, err = finishCall(expr)
+			if err != nil {
+				return nil, err
+			}
+		} else if match(DOT) {
+			expr, err = get(expr)
 			if err != nil {
 				return nil, err
 			}
@@ -794,9 +806,26 @@ func functionCall() (*AstNode, error) {
 		}
 	}
 
-	return function, nil
+	return expr, nil
 }
 
+/* Parses getter syntax. */
+func get(l_expr *AstNode) (*AstNode, error) {
+	r_id_token, err := consume(IDENTIFIER, "Expect property name after '.'.")
+	if err != nil {
+		return nil, err
+	}
+
+	return &AstNode{
+		Representation: r_id_token,
+		Type:           GETTER,
+		Children:       []*AstNode{l_expr},
+	}, nil
+}
+
+/*
+Parse arguments and complete parsing the function call.
+*/
 func finishCall(callee *AstNode) (*AstNode, error) {
 	children := []*AstNode{callee}
 
