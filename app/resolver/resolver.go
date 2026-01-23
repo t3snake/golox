@@ -22,6 +22,7 @@ type FunctionType int
 const (
 	NONE     FunctionType = 0
 	FUNCTION FunctionType = 1
+	METHOD   FunctionType = 2
 )
 
 // Current function type
@@ -72,7 +73,7 @@ func resolveAst(node *parser.AstNode) error {
 		err = resolveAssignment(node)
 
 	case parser.FNDECL:
-		err = resolveFuncDeclr(node)
+		err = resolveFuncDeclr(node, FUNCTION)
 
 	case parser.EXPRSTM, parser.PRINTSTM: // same struct as expression stmt
 		err = resolveExprStmt(node)
@@ -199,7 +200,7 @@ func resolveAssignment(node *parser.AstNode) error {
 }
 
 // Resolve function declaration statement.
-func resolveFuncDeclr(node *parser.AstNode) error {
+func resolveFuncDeclr(node *parser.AstNode, func_type FunctionType) error {
 	func_node, ok := node.Representation.(parser.FunctionAstNode)
 	if !ok {
 		return fmt.Errorf("resolver error: representation of func declaration statement is not of type FunctionAstNode.")
@@ -208,7 +209,7 @@ func resolveFuncDeclr(node *parser.AstNode) error {
 	// TODO: make a separate method for code below for reuse with class methods
 
 	enclosing_func_type := current_func_type
-	current_func_type = FUNCTION
+	current_func_type = func_type
 
 	if len(node.Children) != 1 {
 		return fmt.Errorf("resolver error: not exactly 1 child for function declaration.")
@@ -348,6 +349,13 @@ func resolveClassDecl(node *parser.AstNode) error {
 
 	declare(class_name)
 	define(class_name)
+
+	for _, child := range node.Children {
+		err := resolveFuncDeclr(child, METHOD)
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }

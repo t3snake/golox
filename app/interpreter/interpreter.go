@@ -88,10 +88,32 @@ func EvaluateAst(node *parser.AstNode, environment *EnvironmentNode) (any, error
 			return nil, fmt.Errorf("interpreter error: representation of class declaration not a token.")
 		}
 
+		methods := make(map[string]LoxFunction)
+		for _, child := range node.Children {
+			if child.Type != parser.FNDECL {
+				return nil, fmt.Errorf("interpreter error: child of class declaration are not of type FNDECL.")
+			}
+
+			if len(node.Children) != 1 {
+				return nil, fmt.Errorf("interpreter error: function declaration should have body as child.")
+			}
+
+			body := node.Children[0]
+
+			meth_node, ok := node.Representation.(parser.FunctionAstNode)
+			if !ok {
+				return nil, fmt.Errorf("interpreter error: function representation not of type FunctionAstNode.")
+			}
+
+			lox_meth := constructLoxFunction(meth_node, body, environment)
+
+			methods[lox_meth.Lexeme] = *lox_meth
+		}
+
 		// define binding so class can refer itself during declaration
 		environment.bindings[class_name.Lexeme] = nil
 
-		class := constructLoxClass(class_name.Lexeme)
+		class := constructLoxClass(class_name.Lexeme, methods)
 
 		// store class representation for runtime in environment
 		environment.bindings[class_name.Lexeme] = class
