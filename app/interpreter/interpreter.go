@@ -94,13 +94,13 @@ func EvaluateAst(node *parser.AstNode, environment *EnvironmentNode) (any, error
 				return nil, fmt.Errorf("interpreter error: child of class declaration are not of type FNDECL.")
 			}
 
-			if len(node.Children) != 1 {
+			if len(child.Children) != 1 {
 				return nil, fmt.Errorf("interpreter error: function declaration should have body as child.")
 			}
 
-			body := node.Children[0]
+			body := child.Children[0]
 
-			meth_node, ok := node.Representation.(parser.FunctionAstNode)
+			meth_node, ok := child.Representation.(parser.FunctionAstNode)
 			if !ok {
 				return nil, fmt.Errorf("interpreter error: function representation not of type FunctionAstNode.")
 			}
