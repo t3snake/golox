@@ -27,6 +27,10 @@ func (inst *LoxInstance) get(property Token) (any, error) {
 	return field_val, err
 }
 
+func (inst *LoxInstance) set(property Token, value any) {
+	inst.fields[property.Lexeme] = value
+}
+
 func constructLoxClass(class_name string) *LoxClass {
 	return &LoxClass{
 		name: class_name,
@@ -35,6 +39,7 @@ func constructLoxClass(class_name string) *LoxClass {
 			arity:  0,
 			call: func(arguments []any) any {
 				return LoxInstance{
+					fields: make(map[string]any),
 					toString: func() string {
 						return fmt.Sprintf("%s instance", class_name)
 					},

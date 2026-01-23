@@ -94,6 +94,9 @@ func resolveAst(node *parser.AstNode) error {
 
 	// Expression cases
 
+	case parser.SETTER:
+		err = resolveSetter(node)
+
 	case parser.GETTER:
 		err = resolveGetter(node)
 
@@ -347,6 +350,20 @@ func resolveClassDecl(node *parser.AstNode) error {
 	define(class_name)
 
 	return nil
+}
+
+// Resolves setter expressions.
+func resolveSetter(node *parser.AstNode) error {
+	if len(node.Children) != 2 {
+		return fmt.Errorf("resolver error: not exactly 2 children of setter node")
+	}
+
+	err := resolveAst(node.Children[1]) // r value
+	if err != nil {
+		return err
+	}
+
+	return resolveAst(node.Children[0]) // l value
 }
 
 // Resolves getter expressions.

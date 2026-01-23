@@ -32,6 +32,35 @@ func Interpret(statements []*parser.AstNode) error {
 func EvaluateAst(node *parser.AstNode, environment *EnvironmentNode) (any, error) {
 	// TODO typecheck here? but any return type
 	switch node.Type {
+	case parser.SETTER:
+		if len(node.Children) != 2 {
+			return nil, fmt.Errorf("interpreter error: not exactly 2 children for setter node.")
+		}
+
+		r_token, ok := node.Representation.(Token)
+		if !ok {
+			return nil, fmt.Errorf("interpreter error: representation for setter node not of type Token.")
+		}
+
+		l_value, err := EvaluateAst(node.Children[0], environment)
+		if err != nil {
+			return nil, err
+		}
+
+		instance, ok := l_value.(LoxInstance)
+		if !ok {
+			err = loxerrors.RuntimeError(r_token, "Only instances have fields.")
+			return nil, err
+		}
+
+		r_value, err := EvaluateAst(node.Children[1], environment)
+		if err != nil {
+			return nil, err
+		}
+
+		instance.set(r_token, r_value)
+		return r_value, nil
+
 	case parser.GETTER:
 		if len(node.Children) != 1 {
 			return nil, fmt.Errorf("interpreter error: getter node does not have exactly 1 child.")

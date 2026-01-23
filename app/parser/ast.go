@@ -34,6 +34,7 @@ const (
 	FNCALL     NodeType = "function_call"
 	FNDECL     NodeType = "function_declaration"
 	GETTER     NodeType = "getter"
+	SETTER     NodeType = "setter"
 
 	// statement types
 
@@ -96,7 +97,7 @@ returnStmt     → "return" expression? ";" ;
 // Expression level
 
 expression     → assignment ;
-assignment     → IDENTIFIER "=" assignment
+assignment     → ( call "." )? IDENTIFIER "=" assignment
 			   | logic_or ;
 logic_or       → logic_and ( "or" logic_and )* ;
 logic_and      → equality ( "and" equality )* ;
@@ -133,7 +134,7 @@ func declaration() (*AstNode, error) {
 	if err != nil {
 		synchronize()
 		return nil, err
-	} else if *loxerrors.GetRuntimeErrorState() {
+	} else if *loxerrors.GetErrorState() {
 		synchronize()
 		return nil, nil
 	}
@@ -574,6 +575,11 @@ func expression() (*AstNode, error) {
 	return assignment()
 }
 
+/*
+Represents assignment expression.
+
+	assignment → ( call "." )? IDENTIFIER "=" assignment | logic_or ;
+*/
 func assignment() (*AstNode, error) {
 	// we evaluate it like an expression and if there is no assignment operator, we return this
 	// if there is a assignment operator, we check if left side can be assigned to and
@@ -590,17 +596,28 @@ func assignment() (*AstNode, error) {
 			return nil, err
 		}
 
-		if l_value.Type != VARIABLE {
+		switch l_value.Type {
+		case VARIABLE:
+			return &AstNode{
+				Representation: l_value.Representation,
+				Type:           ASSIGNMENT,
+				Children:       []*AstNode{r_value},
+			}, nil
+		case GETTER:
+			if len(l_value.Children) != 1 {
+				return nil, fmt.Errorf("parser error: getter in assignment does not have exactly 1 child.")
+			}
+			return &AstNode{
+				Representation: l_value.Representation,
+				Type:           SETTER,
+				Children:       []*AstNode{l_value.Children[0], r_value},
+			}, nil
+		default:
 			// if l_value is not something we can assign to
-			err = loxerrors.RuntimeError(equal_token, "Invalid assignment target.")
-			return nil, err
+			loxerrors.ParserError(equal_token, "Invalid assignment target.")
+			return nil, nil
 		}
 
-		return &AstNode{
-			Representation: l_value.Representation,
-			Type:           ASSIGNMENT,
-			Children:       []*AstNode{r_value},
-		}, nil
 	}
 
 	return l_value, nil
