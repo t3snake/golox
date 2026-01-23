@@ -29,7 +29,7 @@ func (inst *LoxInstance) get(property Token) (any, error) {
 	// search method of the class
 	method, ok := inst.class.methods[property.Lexeme]
 	if ok {
-		return method, nil
+		return &method, nil
 	}
 	return nil, loxerrors.RuntimeError(property,
 		fmt.Sprintf("Undefined property %s.", property.Lexeme))
