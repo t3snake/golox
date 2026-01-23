@@ -2,6 +2,9 @@ package interpreter
 
 import (
 	"fmt"
+	//lint:ignore ST1001 I dont care
+	"github.com/codecrafters-io/interpreter-starter-go/app/loxerrors"
+	. "github.com/codecrafters-io/interpreter-starter-go/app/token"
 )
 
 type LoxClass struct {
@@ -10,7 +13,18 @@ type LoxClass struct {
 }
 
 type LoxInstance struct {
+	fields   map[string]any
 	toString func() string
+}
+
+func (inst *LoxInstance) get(property Token) (any, error) {
+	field_val, ok := inst.fields[property.Lexeme]
+	var err error = nil
+	if !ok {
+		err = loxerrors.RuntimeError(property,
+			fmt.Sprintf("Undefined property %s.", property.Lexeme))
+	}
+	return field_val, err
 }
 
 func constructLoxClass(class_name string) *LoxClass {

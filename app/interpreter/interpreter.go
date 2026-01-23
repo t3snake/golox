@@ -32,6 +32,27 @@ func Interpret(statements []*parser.AstNode) error {
 func EvaluateAst(node *parser.AstNode, environment *EnvironmentNode) (any, error) {
 	// TODO typecheck here? but any return type
 	switch node.Type {
+	case parser.GETTER:
+		if len(node.Children) != 1 {
+			return nil, fmt.Errorf("interpreter error: getter node does not have exactly 1 child.")
+		}
+
+		r_token, ok := node.Representation.(Token)
+		if !ok {
+			return nil, fmt.Errorf("interpreter error: getter node representation is not of type Token.")
+		}
+		eval, err := EvaluateAst(node.Children[0], environment)
+		if err != nil {
+			return nil, err
+		}
+
+		if class_instance, ok := eval.(LoxInstance); ok {
+			return class_instance.get(r_token)
+		}
+
+		err = loxerrors.RuntimeError(r_token, "Only instances have properties.")
+		return nil, err
+
 	case parser.CLASSDECL:
 		class_name, ok := node.Representation.(Token)
 		if !ok {
