@@ -19,7 +19,8 @@ type LoxInstance struct {
 	toString func() string
 }
 
-func (inst *LoxInstance) get(property Token) (any, error) {
+// Get property of Lox Instance. Searches token if fields first and then methods. If not found reports an error.
+func (inst *LoxInstance) get(property Token, env *EnvironmentNode) (any, error) {
 	// search properties or fields of class
 	field_val, ok := inst.fields[property.Lexeme]
 	if ok {
@@ -28,8 +29,11 @@ func (inst *LoxInstance) get(property Token) (any, error) {
 
 	// search method of the class
 	method, ok := inst.class.methods[property.Lexeme]
-	if ok {
-		return &method, nil
+	if ok && env != nil {
+		new_env := initializeEnvironment(env)
+		new_env.bindings["this"] = *inst
+		modified_method := constructLoxFunction(method.Lexeme, method.Parameters, method.Block, new_env)
+		return modified_method, nil
 	}
 	return nil, loxerrors.RuntimeError(property,
 		fmt.Sprintf("Undefined property %s.", property.Lexeme))

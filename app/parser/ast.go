@@ -27,6 +27,7 @@ const (
 	TERMINAL   NodeType = "terminal"
 	STRINGNODE NodeType = "string"
 	NUMBERNODE NodeType = "number"
+	THISNODE   NodeType = "this"
 	GROUP      NodeType = "group"
 	VARIABLE   NodeType = "variable"
 	ASSIGNMENT NodeType = "assignment"
@@ -926,6 +927,14 @@ func primary() (*AstNode, error) {
 		return &AstNode{
 			Representation: previous().Literal,
 			Type:           NUMBERNODE,
+			Children:       nil,
+		}, nil
+	}
+
+	if match(THIS) {
+		return &AstNode{
+			Representation: previous(),
+			Type:           THISNODE,
 			Children:       nil,
 		}, nil
 	}

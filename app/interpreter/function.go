@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/codecrafters-io/interpreter-starter-go/app/parser"
+	. "github.com/codecrafters-io/interpreter-starter-go/app/token"
 )
 
 // Use special error type to propogate error till the function call
@@ -20,10 +21,12 @@ func (e *ErrReturnSignal) Error() string {
 
 // Lox function representation for interpreter.
 type LoxFunction struct {
-	Lexeme   string
-	arity    int // number of arguments
-	call     func(arguments []any) any
-	toString func() string
+	Lexeme     string
+	Parameters []Token
+	Block      *parser.AstNode
+	arity      int // number of arguments
+	call       func(arguments []any) any
+	toString   func() string
 }
 
 // Define global / foreign / builtin functions for Lox
@@ -41,13 +44,20 @@ func defineGlobalFunctions() {
 	}
 }
 
-func constructLoxFunction(func_ast_node parser.FunctionAstNode, block *parser.AstNode, environment *EnvironmentNode) *LoxFunction {
+func constructLoxFunction(
+	name string,
+	parameters []Token,
+	block *parser.AstNode,
+	environment *EnvironmentNode,
+) *LoxFunction {
 	return &LoxFunction{
-		Lexeme: func_ast_node.Name.Lexeme,
-		arity:  len(func_ast_node.Parameters),
+		Lexeme:     name,
+		Parameters: parameters, // For using an existing LoxFunction to create a modified LoxFunction
+		Block:      block,      // to create a modified version of existing lox instance
+		arity:      len(parameters),
 		call: func(arguments []any) any {
 			func_environment := initializeEnvironment(environment)
-			for idx, param := range func_ast_node.Parameters {
+			for idx, param := range parameters {
 				func_environment.bindings[param.Lexeme] = arguments[idx]
 			}
 
@@ -63,7 +73,7 @@ func constructLoxFunction(func_ast_node parser.FunctionAstNode, block *parser.As
 			return nil
 		},
 		toString: func() string {
-			return fmt.Sprintf("<fn %s>", func_ast_node.Name.Lexeme)
+			return fmt.Sprintf("<fn %s>", name)
 		},
 	}
 }

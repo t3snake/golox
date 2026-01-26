@@ -95,6 +95,9 @@ func resolveAst(node *parser.AstNode) error {
 
 	// Expression cases
 
+	case parser.THISNODE:
+		err = resolveThisNode(node)
+
 	case parser.SETTER:
 		err = resolveSetter(node)
 
@@ -350,6 +353,10 @@ func resolveClassDecl(node *parser.AstNode) error {
 	declare(class_name)
 	define(class_name)
 
+	beginScope()
+	scope := scope_stack[scope_top]
+	scope["this"] = true // add this in scope for further use as a normal variable
+
 	for _, child := range node.Children {
 		err := resolveFuncDeclr(child, METHOD)
 		if err != nil {
@@ -357,6 +364,19 @@ func resolveClassDecl(node *parser.AstNode) error {
 		}
 	}
 
+	endScope()
+
+	return nil
+}
+
+// Resolves this expressions.
+func resolveThisNode(node *parser.AstNode) error {
+	token, ok := node.Representation.(Token)
+	if !ok {
+		return fmt.Errorf("resolver error: representation of this node is not of type Token.")
+	}
+
+	resolveLocal(node, token)
 	return nil
 }
 

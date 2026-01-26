@@ -32,6 +32,14 @@ func Interpret(statements []*parser.AstNode) error {
 func EvaluateAst(node *parser.AstNode, environment *EnvironmentNode) (any, error) {
 	// TODO typecheck here? but any return type
 	switch node.Type {
+	case parser.THISNODE:
+		token, ok := node.Representation.(Token)
+		if !ok {
+			return nil, fmt.Errorf("interpreter error: representation for this node is not of type Token.")
+		}
+		_, eval_result := lookupVariable(token, node, environment)
+		return eval_result, nil
+
 	case parser.SETTER:
 		if len(node.Children) != 2 {
 			return nil, fmt.Errorf("interpreter error: not exactly 2 children for setter node.")
@@ -76,7 +84,7 @@ func EvaluateAst(node *parser.AstNode, environment *EnvironmentNode) (any, error
 		}
 
 		if class_instance, ok := eval.(LoxInstance); ok {
-			return class_instance.get(r_token)
+			return class_instance.get(r_token, environment)
 		}
 
 		err = loxerrors.RuntimeError(r_token, "Only instances have properties.")
@@ -105,7 +113,7 @@ func EvaluateAst(node *parser.AstNode, environment *EnvironmentNode) (any, error
 				return nil, fmt.Errorf("interpreter error: function representation not of type FunctionAstNode.")
 			}
 
-			lox_meth := constructLoxFunction(meth_node, body, environment)
+			lox_meth := constructLoxFunction(meth_node.Name.Lexeme, meth_node.Parameters, body, environment)
 
 			methods[lox_meth.Lexeme] = *lox_meth
 		}
@@ -156,7 +164,7 @@ func EvaluateAst(node *parser.AstNode, environment *EnvironmentNode) (any, error
 			return nil, fmt.Errorf("interpreter error: function representation not of type FunctionAstNode")
 		}
 
-		lox_fn := constructLoxFunction(func_node, body, environment)
+		lox_fn := constructLoxFunction(func_node.Name.Lexeme, func_node.Parameters, body, environment)
 
 		// add to this environment or global?
 		environment.bindings[lox_fn.Lexeme] = lox_fn
