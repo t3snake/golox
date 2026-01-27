@@ -20,13 +20,22 @@ var scope_top int = -1
 type FunctionType int
 
 const (
-	NONE     FunctionType = 0
+	NONE_FN  FunctionType = 0
 	FUNCTION FunctionType = 1
 	METHOD   FunctionType = 2
 )
 
 // Current function type
-var current_func_type FunctionType = NONE
+var current_func_type FunctionType = NONE_FN
+
+type ClassType int
+
+const (
+	NONE_CL     ClassType = 0
+	CLASS_DECLR ClassType = 1
+)
+
+var current_class_type ClassType = NONE_CL
 
 // Pushes a new scope into scope stack.
 func beginScope() {
@@ -292,7 +301,7 @@ func resolveReturnStmt(node *parser.AstNode) error {
 		return fmt.Errorf("resolver error: not exactly 1 child of return statement.")
 	}
 
-	if current_func_type == NONE {
+	if current_func_type == NONE_FN {
 		tok, ok := node.Representation.(Token)
 		if !ok {
 			return fmt.Errorf("resolver error: representation of return statement was not Token.")
@@ -353,6 +362,9 @@ func resolveClassDecl(node *parser.AstNode) error {
 	declare(class_name)
 	define(class_name)
 
+	enclosing_class_type := current_class_type
+	current_class_type = CLASS_DECLR
+
 	beginScope()
 	scope := scope_stack[scope_top]
 	scope["this"] = true // add this in scope for further use as a normal variable
@@ -366,6 +378,8 @@ func resolveClassDecl(node *parser.AstNode) error {
 
 	endScope()
 
+	current_class_type = enclosing_class_type
+
 	return nil
 }
 
@@ -374,6 +388,10 @@ func resolveThisNode(node *parser.AstNode) error {
 	token, ok := node.Representation.(Token)
 	if !ok {
 		return fmt.Errorf("resolver error: representation of this node is not of type Token.")
+	}
+
+	if current_class_type != CLASS_DECLR {
+		loxerrors.RuntimeError(token, "Can't use 'this' outside class.")
 	}
 
 	resolveLocal(node, token)
