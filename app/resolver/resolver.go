@@ -20,9 +20,10 @@ var scope_top int = -1
 type FunctionType int
 
 const (
-	NONE_FN  FunctionType = 0
-	FUNCTION FunctionType = 1
-	METHOD   FunctionType = 2
+	NONE_FN     FunctionType = 0
+	FUNCTION    FunctionType = 1
+	METHOD      FunctionType = 2
+	INITIALIZER FunctionType = 3
 )
 
 // Current function type
@@ -218,7 +219,9 @@ func resolveFuncDeclr(node *parser.AstNode, func_type FunctionType) error {
 		return fmt.Errorf("resolver error: representation of func declaration statement is not of type FunctionAstNode.")
 	}
 
-	// TODO: make a separate method for code below for reuse with class methods
+	if func_type == METHOD && func_node.Name.Lexeme == "init" {
+		func_type = INITIALIZER
+	}
 
 	enclosing_func_type := current_func_type
 	current_func_type = func_type
@@ -301,18 +304,25 @@ func resolveReturnStmt(node *parser.AstNode) error {
 		return fmt.Errorf("resolver error: not exactly 1 child of return statement.")
 	}
 
+	tok, ok := node.Representation.(Token)
+	if !ok {
+		return fmt.Errorf("resolver error: representation of return statement was not Token.")
+	}
+
 	if current_func_type == NONE_FN {
-		tok, ok := node.Representation.(Token)
-		if !ok {
-			return fmt.Errorf("resolver error: representation of return statement was not Token.")
-		}
 		loxerrors.RuntimeError(tok, "Can't return from top level code.")
 	}
 
 	if node.Children[0] != nil {
+		if current_func_type == INITIALIZER {
+			// cant have non nil/empty return for initializer/constructor
+			loxerrors.RuntimeError(tok, "Can't return a value from initializer.")
+			return nil
+		}
 		err := resolveAst(node.Children[0])
 		return err
 	}
+
 	return nil
 }
 
