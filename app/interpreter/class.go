@@ -30,36 +30,57 @@ func (inst *LoxInstance) get(property Token, env *EnvironmentNode) (any, error) 
 	// search method of the class
 	method, ok := inst.class.methods[property.Lexeme]
 	if ok && env != nil {
-		new_env := initializeEnvironment(env)
-		new_env.bindings["this"] = *inst
-		modified_method := constructLoxFunction(method.Lexeme, method.Parameters, method.Block, new_env)
-		return modified_method, nil
+		return injectThisIntoMethod(*inst, method, env), nil
 	}
 	return nil, loxerrors.RuntimeError(property,
 		fmt.Sprintf("Undefined property %s.", property.Lexeme))
 }
 
+// Sets a property or method to the lox instance
 func (inst *LoxInstance) set(property Token, value any) {
 	inst.fields[property.Lexeme] = value
 }
 
-func constructLoxClass(class_name string, methods map[string]LoxFunction) *LoxClass {
+// Injects a new environment with a binding for 'this' to the instance on which the method is called.
+func injectThisIntoMethod(inst LoxInstance, method LoxFunction, env *EnvironmentNode) *LoxFunction {
+	new_env := initializeEnvironment(env)
+	new_env.bindings["this"] = inst
+	modified_method := constructLoxFunction(method.Lexeme, method.Parameters, method.Block, new_env, method.IsInitializer)
+	return modified_method
+}
+
+func constructLoxClass(class_name string, methods map[string]LoxFunction, env *EnvironmentNode) *LoxClass {
 	class := &LoxClass{
 		name:    class_name,
 		methods: methods,
 	}
 
+	// arity is 0 if no explicit constructor
+	arity := 0
+	init_meth, isInitAvailable := methods["init"]
+	if isInitAvailable {
+		// if init available, arity is equal to number of arguments
+		arity = init_meth.arity
+	}
+
 	class.LoxFunction = LoxFunction{
 		Lexeme: class_name,
-		arity:  0,
-		call: func(arguments []any) any {
-			return LoxInstance{
+		arity:  arity,
+		call: func(arguments []any) any { // this call is the constructor call
+			instance := LoxInstance{
 				class:  class,
 				fields: make(map[string]any),
 				toString: func() string {
 					return fmt.Sprintf("%s instance", class_name)
 				},
 			}
+
+			if isInitAvailable {
+				modified_meth := injectThisIntoMethod(instance, init_meth, env)
+				modified_meth.call(arguments)
+			}
+
+			return instance
 		},
 		toString: func() string {
 			return class_name

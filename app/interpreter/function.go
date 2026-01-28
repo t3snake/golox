@@ -21,12 +21,13 @@ func (e *ErrReturnSignal) Error() string {
 
 // Lox function representation for interpreter.
 type LoxFunction struct {
-	Lexeme     string
-	Parameters []Token
-	Block      *parser.AstNode
-	arity      int // number of arguments
-	call       func(arguments []any) any
-	toString   func() string
+	Lexeme        string
+	Parameters    []Token
+	Block         *parser.AstNode
+	IsInitializer bool
+	arity         int // number of arguments
+	call          func(arguments []any) any
+	toString      func() string
 }
 
 // Define global / foreign / builtin functions for Lox
@@ -49,12 +50,14 @@ func constructLoxFunction(
 	parameters []Token,
 	block *parser.AstNode,
 	environment *EnvironmentNode,
+	isInitializer bool,
 ) *LoxFunction {
 	return &LoxFunction{
-		Lexeme:     name,
-		Parameters: parameters, // For using an existing LoxFunction to create a modified LoxFunction
-		Block:      block,      // to create a modified version of existing lox instance
-		arity:      len(parameters),
+		Lexeme:        name,
+		Parameters:    parameters, // For using an existing LoxFunction to create a modified LoxFunction
+		Block:         block,      // to create a modified version of existing lox instance
+		IsInitializer: isInitializer,
+		arity:         len(parameters),
 		call: func(arguments []any) any {
 			func_environment := initializeEnvironment(environment)
 			for idx, param := range parameters {
@@ -67,7 +70,19 @@ func constructLoxFunction(
 				if !ok {
 					return err
 				}
+
+				if isInitializer {
+					// in case return; found in initializer, hijack and return instance instead of nil
+					val, _ := environment.bindings["this"]
+					return val
+				}
 				return returnVal.value
+			}
+
+			if isInitializer {
+				// returns instance (previously binded this) always if initializer/constructor
+				val, _ := environment.bindings["this"]
+				return val
 			}
 
 			return nil

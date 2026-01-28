@@ -113,7 +113,8 @@ func EvaluateAst(node *parser.AstNode, environment *EnvironmentNode) (any, error
 				return nil, fmt.Errorf("interpreter error: function representation not of type FunctionAstNode.")
 			}
 
-			lox_meth := constructLoxFunction(meth_node.Name.Lexeme, meth_node.Parameters, body, environment)
+			isInit := meth_node.Name.Lexeme == "init"
+			lox_meth := constructLoxFunction(meth_node.Name.Lexeme, meth_node.Parameters, body, environment, isInit)
 
 			methods[lox_meth.Lexeme] = *lox_meth
 		}
@@ -121,7 +122,7 @@ func EvaluateAst(node *parser.AstNode, environment *EnvironmentNode) (any, error
 		// define binding so class can refer itself during declaration
 		environment.bindings[class_name.Lexeme] = nil
 
-		class := constructLoxClass(class_name.Lexeme, methods)
+		class := constructLoxClass(class_name.Lexeme, methods, environment)
 
 		// store class representation for runtime in environment
 		environment.bindings[class_name.Lexeme] = class
@@ -164,7 +165,7 @@ func EvaluateAst(node *parser.AstNode, environment *EnvironmentNode) (any, error
 			return nil, fmt.Errorf("interpreter error: function representation not of type FunctionAstNode")
 		}
 
-		lox_fn := constructLoxFunction(func_node.Name.Lexeme, func_node.Parameters, body, environment)
+		lox_fn := constructLoxFunction(func_node.Name.Lexeme, func_node.Parameters, body, environment, false)
 
 		// add to this environment or global?
 		environment.bindings[lox_fn.Lexeme] = lox_fn
