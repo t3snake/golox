@@ -2,8 +2,10 @@ package interpreter
 
 import (
 	"fmt"
-	//lint:ignore ST1001 I dont care
+
 	"github.com/codecrafters-io/interpreter-starter-go/app/loxerrors"
+
+	//lint:ignore ST1001 I dont care
 	. "github.com/codecrafters-io/interpreter-starter-go/app/token"
 )
 
@@ -12,6 +14,24 @@ type LoxClass struct {
 	methods     map[string]LoxFunction
 	superclass  *LoxClass
 	LoxFunction // embed LoxFunction struct since instance is callable Class()
+}
+
+// Find method in class and inheritence chain. If no method found returns nil.
+func (class *LoxClass) findMethod(name string) *LoxFunction {
+	// look at class of instance for the method
+	method, ok := class.methods[name]
+	if ok {
+		return &method
+	}
+
+	if class.superclass != nil {
+		superclass_method := class.superclass.findMethod(name)
+		if superclass_method != nil {
+			return superclass_method
+		}
+	}
+
+	return nil
 }
 
 type LoxInstance struct {
@@ -29,8 +49,8 @@ func (inst *LoxInstance) get(property Token, env *EnvironmentNode) (any, error) 
 	}
 
 	// search method of the class
-	method, ok := inst.class.methods[property.Lexeme]
-	if ok && env != nil {
+	method := inst.class.findMethod(property.Lexeme)
+	if method != nil && env != nil {
 		return injectThisIntoMethod(*inst, method, env), nil
 	}
 	return nil, loxerrors.RuntimeError(property,
@@ -43,7 +63,7 @@ func (inst *LoxInstance) set(property Token, value any) {
 }
 
 // Injects a new environment with a binding for 'this' to the instance on which the method is called.
-func injectThisIntoMethod(inst LoxInstance, method LoxFunction, env *EnvironmentNode) *LoxFunction {
+func injectThisIntoMethod(inst LoxInstance, method *LoxFunction, env *EnvironmentNode) *LoxFunction {
 	new_env := initializeEnvironment(env)
 	new_env.bindings["this"] = inst
 	modified_method := constructLoxFunction(method.Lexeme, method.Parameters, method.Block, new_env, method.IsInitializer)
@@ -59,8 +79,8 @@ func constructLoxClass(class_name string, superclass *LoxClass, methods map[stri
 
 	// arity is 0 if no explicit constructor
 	arity := 0
-	init_meth, isInitAvailable := methods["init"]
-	if isInitAvailable {
+	init_meth := class.findMethod("init")
+	if init_meth != nil {
 		// if init available, arity is equal to number of arguments
 		arity = init_meth.arity
 	}
@@ -77,7 +97,7 @@ func constructLoxClass(class_name string, superclass *LoxClass, methods map[stri
 				},
 			}
 
-			if isInitAvailable {
+			if init_meth != nil {
 				modified_meth := injectThisIntoMethod(instance, init_meth, env)
 				modified_meth.call(arguments)
 			}
