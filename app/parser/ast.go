@@ -72,7 +72,8 @@ declaration    → classDecl
 			   | funDecl
 			   | varDecl
 			   | statement ;
-classDecl      → "class" IDENTIFIER "{" function * "}" ; // No fun keyword needed for class methods.
+classDecl      → "class" IDENTIFIER ( "<" IDENTIFIER )?
+	           "{" function * "}" ; // No fun keyword needed for class methods.
 funDecl        → "fun" function ;
 function       → IDENTIFIER "(" parameters? ")" block ;
 parameters     → IDENTIFIER ( "," IDENTIFIER )* ;
@@ -146,7 +147,7 @@ func declaration() (*AstNode, error) {
 /*
 Defines class declaration.
 
-	classDecl → "class" IDENTIFIER "{" function* "}" ;
+	classDecl → "class" IDENTIFIER ( "<" IDENTIFIER )? "{" function* "}" ;
 */
 func classDeclaration() (*AstNode, error) {
 	class_name, err := consume(IDENTIFIER, "Expect class name.")
@@ -154,12 +155,27 @@ func classDeclaration() (*AstNode, error) {
 		return nil, err
 	}
 
+	var superclass *AstNode = nil
+	if match(LESS) {
+		// if " < superclass " found, store superclass as variable
+		superclass_name, err := consume(IDENTIFIER, "Expect superclass name.")
+		if err != nil {
+			return nil, err
+		}
+		superclass = &AstNode{
+			Representation: superclass_name,
+			Type:           VARIABLE,
+			Children:       nil,
+		}
+	}
+
 	_, err = consume(LEFT_BRACE, "Expect '{' before class body.")
 	if err != nil {
 		return nil, err
 	}
 
-	methods := make([]*AstNode, 0)
+	methods := make([]*AstNode, 1)
+	methods[0] = superclass // either nil or variable if superclass exists
 	// Check EOF also so the loop doesnt get stuck in infinite loop
 	for peek().Type != EOF && peek().Type != RIGHT_BRACE {
 		method, err := functionDeclaration(METHOD)

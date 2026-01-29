@@ -10,6 +10,7 @@ import (
 type LoxClass struct {
 	name        string
 	methods     map[string]LoxFunction
+	superclass  *LoxClass
 	LoxFunction // embed LoxFunction struct since instance is callable Class()
 }
 
@@ -49,10 +50,11 @@ func injectThisIntoMethod(inst LoxInstance, method LoxFunction, env *Environment
 	return modified_method
 }
 
-func constructLoxClass(class_name string, methods map[string]LoxFunction, env *EnvironmentNode) *LoxClass {
+func constructLoxClass(class_name string, superclass *LoxClass, methods map[string]LoxFunction, env *EnvironmentNode) *LoxClass {
 	class := &LoxClass{
-		name:    class_name,
-		methods: methods,
+		name:       class_name,
+		methods:    methods,
+		superclass: superclass,
 	}
 
 	// arity is 0 if no explicit constructor

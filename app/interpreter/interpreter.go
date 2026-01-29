@@ -96,8 +96,31 @@ func EvaluateAst(node *parser.AstNode, environment *EnvironmentNode) (any, error
 			return nil, fmt.Errorf("interpreter error: representation of class declaration not a token.")
 		}
 
+		if len(node.Children) < 1 {
+			return nil, fmt.Errorf("interpreter error: not >= 1 children for class declaration node.")
+		}
+
+		var lox_superclass *LoxClass = nil
+		superclass_node := node.Children[0]
+		if superclass_node != nil {
+			superclass_token, ok := superclass_node.Representation.(Token)
+			if !ok {
+				return nil, fmt.Errorf("interpreter error: representation of superclass is not of type Token.")
+			}
+			superclass, err := EvaluateAst(superclass_node, environment)
+			if err != nil {
+				return nil, err
+			}
+
+			lox_superclass, ok = superclass.(*LoxClass)
+			if !ok {
+				err := loxerrors.RuntimeError(superclass_token, "Superclass must be a class.")
+				return nil, err
+			}
+		}
+
 		methods := make(map[string]LoxFunction)
-		for _, child := range node.Children {
+		for _, child := range node.Children[1:] {
 			if child.Type != parser.FNDECL {
 				return nil, fmt.Errorf("interpreter error: child of class declaration are not of type FNDECL.")
 			}
@@ -122,7 +145,7 @@ func EvaluateAst(node *parser.AstNode, environment *EnvironmentNode) (any, error
 		// define binding so class can refer itself during declaration
 		environment.bindings[class_name.Lexeme] = nil
 
-		class := constructLoxClass(class_name.Lexeme, methods, environment)
+		class := constructLoxClass(class_name.Lexeme, lox_superclass, methods, environment)
 
 		// store class representation for runtime in environment
 		environment.bindings[class_name.Lexeme] = class

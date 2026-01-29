@@ -366,7 +366,11 @@ func resolveFuncCall(node *parser.AstNode) error {
 func resolveClassDecl(node *parser.AstNode) error {
 	class_name, ok := node.Representation.(Token)
 	if !ok {
-		return fmt.Errorf("representation for class node is not a token.")
+		return fmt.Errorf("resolver error: representation for class node is not a token.")
+	}
+
+	if len(node.Children) < 1 {
+		return fmt.Errorf("resolver error: not >= 1 children in class declaration node.")
 	}
 
 	declare(class_name)
@@ -375,11 +379,28 @@ func resolveClassDecl(node *parser.AstNode) error {
 	enclosing_class_type := current_class_type
 	current_class_type = CLASS_DECLR
 
+	superclass_node := node.Children[0]
+	if superclass_node != nil {
+		superclass, ok := superclass_node.Representation.(Token)
+		if !ok {
+			return fmt.Errorf("resolver error: superclass node representation is not a Token.")
+		}
+
+		if class_name.Lexeme == superclass.Lexeme {
+			loxerrors.RuntimeError(superclass, "A class can't inherit from itself.")
+		}
+
+		err := resolveAst(superclass_node)
+		if err != nil {
+			return err
+		}
+	}
+
 	beginScope()
 	scope := scope_stack[scope_top]
 	scope["this"] = true // add this in scope for further use as a normal variable
 
-	for _, child := range node.Children {
+	for _, child := range node.Children[1:] {
 		err := resolveFuncDeclr(child, METHOD)
 		if err != nil {
 			return err
