@@ -34,6 +34,7 @@ type ClassType int
 const (
 	NONE_CL     ClassType = 0
 	CLASS_DECLR ClassType = 1
+	SUBCLASS    ClassType = 2
 )
 
 var current_class_type ClassType = NONE_CL
@@ -392,6 +393,7 @@ func resolveClassDecl(node *parser.AstNode) error {
 		if class_name.Lexeme == superclass.Lexeme {
 			loxerrors.RuntimeError(superclass, "A class can't inherit from itself.")
 		}
+		current_class_type = SUBCLASS
 
 		err := resolveAst(superclass_node)
 		if err != nil {
@@ -439,6 +441,13 @@ func resolveSuperNode(node *parser.AstNode) error {
 		return fmt.Errorf("resolver error: representation of tokens does not have exactly 2 tokens.")
 	}
 
+	switch current_class_type {
+	case NONE_CL:
+		loxerrors.RuntimeError(tokens[0], "Can't use 'super' outside of a class.")
+	case CLASS_DECLR:
+		loxerrors.RuntimeError(tokens[0], "Can't use 'super' in a class with no superclass.")
+	}
+
 	resolveLocal(node, tokens[0]) // 0 is super token, 1 is the property of super (super.something)
 	return nil
 }
@@ -450,7 +459,7 @@ func resolveThisNode(node *parser.AstNode) error {
 		return fmt.Errorf("resolver error: representation of this node is not of type Token.")
 	}
 
-	if current_class_type != CLASS_DECLR {
+	if current_class_type == NONE_CL {
 		loxerrors.RuntimeError(token, "Can't use 'this' outside class.")
 	}
 
