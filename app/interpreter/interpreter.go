@@ -32,6 +32,51 @@ func Interpret(statements []*parser.AstNode) error {
 func EvaluateAst(node *parser.AstNode, environment *EnvironmentNode) (any, error) {
 	// TODO typecheck here? but any return type
 	switch node.Type {
+	case parser.SUPERNODE:
+		tokens, ok := node.Representation.([]Token)
+		if !ok {
+			return nil, fmt.Errorf("interpreter error: super node representation not of type []Token.")
+		}
+		if len(tokens) != 2 {
+			return nil, fmt.Errorf("interpreter error: super node representation does not have exactly 2 tokens.")
+		}
+		super_token := tokens[0]
+		method_token := tokens[1]
+
+		// same logic like environment method lookupVariable
+		jumps, ok := local_scope[node]
+		if !ok {
+			return nil, fmt.Errorf("interpreter error: invalid state in super handling, node not found in local scope.")
+		}
+		target_env_super := getEnvAtDepthInScope(jumps, environment)
+
+		clas, ok := target_env_super.bindings[super_token.Lexeme]
+		if !ok {
+			return nil, fmt.Errorf("interpreter error: superclass reference not found in super.")
+		}
+		lox_superclass, ok := clas.(*LoxClass)
+		if !ok {
+			return nil, fmt.Errorf("interpreter error: superclass reference not of type *LoxClass.")
+		}
+
+		// hard to get instance or this from super but since we control environment chain,
+		// we know it is exactly 1 level below
+		target_env := getEnvAtDepthInScope(jumps-1, environment)
+		inst, ok := target_env.bindings["this"]
+		if !ok {
+			return nil, fmt.Errorf("interpreter error: instance reference not found in this, 1 level below super.")
+		}
+		lox_inst, ok := inst.(LoxInstance)
+		if !ok {
+			return nil, fmt.Errorf("interpreter error: instance reference in this under super is not of type LoxInstance.")
+		}
+
+		lox_method := lox_superclass.findMethod(method_token.Lexeme)
+		if lox_method == nil {
+			loxerrors.RuntimeError(method_token, fmt.Sprintf("Undefined property %s.", method_token.Lexeme))
+		}
+		return injectThisIntoMethod(lox_inst, lox_method), nil
+
 	case parser.THISNODE:
 		token, ok := node.Representation.(Token)
 		if !ok {
@@ -119,6 +164,14 @@ func EvaluateAst(node *parser.AstNode, environment *EnvironmentNode) (any, error
 			}
 		}
 
+		// define binding so class can refer itself during declaration
+		environment.bindings[class_name.Lexeme] = nil
+
+		if lox_superclass != nil {
+			environment = initializeEnvironment(environment)
+			environment.bindings["super"] = lox_superclass
+		}
+
 		methods := make(map[string]LoxFunction)
 		for _, child := range node.Children[1:] {
 			if child.Type != parser.FNDECL {
@@ -142,10 +195,11 @@ func EvaluateAst(node *parser.AstNode, environment *EnvironmentNode) (any, error
 			methods[lox_meth.Lexeme] = *lox_meth
 		}
 
-		// define binding so class can refer itself during declaration
-		environment.bindings[class_name.Lexeme] = nil
-
 		class := constructLoxClass(class_name.Lexeme, lox_superclass, methods, environment)
+
+		if lox_superclass != nil {
+			environment = environment.parent
+		}
 
 		// store class representation for runtime in environment
 		environment.bindings[class_name.Lexeme] = class

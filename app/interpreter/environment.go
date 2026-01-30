@@ -53,7 +53,7 @@ func getValueIfKeyInEnvironment(key string, node *EnvironmentNode) (*Environment
 }
 
 // Lookup variable, resolved already and get exact jumps to be made or search in global environment.
-func lookupVariable(name Token, expr *parser.AstNode, node *EnvironmentNode) (*EnvironmentNode, any) {
+func lookupVariable(name Token, expr *parser.AstNode, env *EnvironmentNode) (*EnvironmentNode, any) {
 	jumps, ok := local_scope[expr]
 
 	if !ok {
@@ -62,7 +62,7 @@ func lookupVariable(name Token, expr *parser.AstNode, node *EnvironmentNode) (*E
 
 	}
 
-	target_env := getEnvAtDepthInScope(jumps, node)
+	target_env := getEnvAtDepthInScope(jumps, env)
 
 	val, ok := target_env.bindings[name.Lexeme]
 

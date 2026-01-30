@@ -105,6 +105,9 @@ func resolveAst(node *parser.AstNode) error {
 
 	// Expression cases
 
+	case parser.SUPERNODE:
+		err = resolveSuperNode(node)
+
 	case parser.THISNODE:
 		err = resolveThisNode(node)
 
@@ -394,6 +397,13 @@ func resolveClassDecl(node *parser.AstNode) error {
 		if err != nil {
 			return err
 		}
+
+		// add new scope to put super in. super is not relative to instance but the class declaration itself
+		// only relevant if there is a super class
+		// see eg: 13.3.3 in Crafting Interpreters to see why: https://craftinginterpreters.com/inheritance.html#calling-superclass-methods
+		beginScope()
+		scope := scope_stack[scope_top]
+		scope["super"] = true
 	}
 
 	beginScope()
@@ -409,8 +419,27 @@ func resolveClassDecl(node *parser.AstNode) error {
 
 	endScope()
 
+	if superclass_node != nil {
+		endScope()
+	}
+
 	current_class_type = enclosing_class_type
 
+	return nil
+}
+
+// Resolves super expressions.
+func resolveSuperNode(node *parser.AstNode) error {
+	tokens, ok := node.Representation.([]Token)
+	if !ok {
+		return fmt.Errorf("resolver error: representation of tokens is not of type []Token.")
+	}
+
+	if len(tokens) != 2 {
+		return fmt.Errorf("resolver error: representation of tokens does not have exactly 2 tokens.")
+	}
+
+	resolveLocal(node, tokens[0]) // 0 is super token, 1 is the property of super (super.something)
 	return nil
 }
 

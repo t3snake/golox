@@ -51,7 +51,7 @@ func (inst *LoxInstance) get(property Token, env *EnvironmentNode) (any, error) 
 	// search method of the class
 	method := inst.class.findMethod(property.Lexeme)
 	if method != nil && env != nil {
-		return injectThisIntoMethod(*inst, method, env), nil
+		return injectThisIntoMethod(*inst, method), nil
 	}
 	return nil, loxerrors.RuntimeError(property,
 		fmt.Sprintf("Undefined property %s.", property.Lexeme))
@@ -63,8 +63,8 @@ func (inst *LoxInstance) set(property Token, value any) {
 }
 
 // Injects a new environment with a binding for 'this' to the instance on which the method is called.
-func injectThisIntoMethod(inst LoxInstance, method *LoxFunction, env *EnvironmentNode) *LoxFunction {
-	new_env := initializeEnvironment(env)
+func injectThisIntoMethod(inst LoxInstance, method *LoxFunction) *LoxFunction {
+	new_env := initializeEnvironment(method.Closure)
 	new_env.bindings["this"] = inst
 	modified_method := constructLoxFunction(method.Lexeme, method.Parameters, method.Block, new_env, method.IsInitializer)
 	return modified_method
@@ -98,7 +98,7 @@ func constructLoxClass(class_name string, superclass *LoxClass, methods map[stri
 			}
 
 			if init_meth != nil {
-				modified_meth := injectThisIntoMethod(instance, init_meth, env)
+				modified_meth := injectThisIntoMethod(instance, init_meth)
 				modified_meth.call(arguments)
 			}
 

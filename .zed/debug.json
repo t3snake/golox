@@ -10,9 +10,6 @@
     "mode": "debug",
     "program": "./app",
     "cwd": "$ZED_WORKTREE_ROOT",
-    "args": [
-      "run",
-      "./app/test.lox"
-    ]
-  }
+    "args": ["run", "./app/test_class.lox"],
+  },
 ]

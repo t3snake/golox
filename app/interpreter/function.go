@@ -25,6 +25,7 @@ type LoxFunction struct {
 	Parameters    []Token
 	Block         *parser.AstNode
 	IsInitializer bool
+	Closure       *EnvironmentNode
 	arity         int // number of arguments
 	call          func(arguments []any) any
 	toString      func() string
@@ -57,6 +58,7 @@ func constructLoxFunction(
 		Parameters:    parameters, // For using an existing LoxFunction to create a modified LoxFunction
 		Block:         block,      // to create a modified version of existing lox instance
 		IsInitializer: isInitializer,
+		Closure:       environment,
 		arity:         len(parameters),
 		call: func(arguments []any) any {
 			func_environment := initializeEnvironment(environment)

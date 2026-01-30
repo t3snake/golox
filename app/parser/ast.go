@@ -36,6 +36,7 @@ const (
 	FNDECL     NodeType = "function_declaration"
 	GETTER     NodeType = "getter"
 	SETTER     NodeType = "setter"
+	SUPERNODE  NodeType = "super"
 
 	// statement types
 
@@ -111,8 +112,8 @@ unary          → ( "!" | "-" ) unary
                | call ;
 call           → primary ( "(" arguments? ")" | "." IDENTIFIER )* ;
 arguments      → expression ( "," expression )* ;
-primary        → NUMBER | STRING | "true" | "false" | "nil"
-               | "(" expression ")" | IDENTIFIER ;
+primary        → NUMBER | STRING | "true" | "false" | "nil" | "this"
+               | "(" expression ")" | IDENTIFIER | "super" "." IDENTIFIER;
 */
 
 /*
@@ -898,6 +899,11 @@ func finishCall(callee *AstNode) (*AstNode, error) {
 	}, nil
 }
 
+/*
+Represents a primary node.
+
+	primary → NUMBER | STRING | "true" | "false" | "nil" | "this" | "(" expression ")" | IDENTIFIER | "super" "." IDENTIFIER;
+*/
 func primary() (*AstNode, error) {
 	if match(TRUE) {
 		return &AstNode{
@@ -970,6 +976,24 @@ func primary() (*AstNode, error) {
 		_, err = consume(RIGHT_PAREN, "Expected ')' after expression.")
 
 		return expr, err
+	}
+
+	if match(SUPER) {
+		super_keyword := previous()
+		_, err := consume(DOT, "Expect '.' after 'super'.")
+		if err != nil {
+			return nil, err
+		}
+		method, err := consume(IDENTIFIER, "Expect superclass method name.")
+		if err != nil {
+			return nil, err
+		}
+
+		return &AstNode{
+			Representation: []Token{super_keyword, method},
+			Type:           SUPERNODE,
+			Children:       nil,
+		}, nil
 	}
 
 	loxerrors.ParserError(peek(), "Expect expression.")
