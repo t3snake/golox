@@ -6,7 +6,7 @@ This repo builds an interpreter in Golang following the book
 This solution passes all tests in the comprehensive test suite in
 ["Build your own Interpreter" Challenge](https://app.codecrafters.io/courses/interpreter/overview).
 
-Along the way, you'll learn about tokenization, ASTs,
+Along the way, I learned about tokenization, ASTs,
 tree-walk interpreters and more.
 
 ## Usage
@@ -16,7 +16,7 @@ tree-walk interpreters and more.
 
 ### Linux / MacOS
 
-- To quickly build and run the interpreter run `./golox.sh` to run your program, which is implemented in `app/main.go`.
+- To quickly build and run the interpreter use `./golox.sh`
 
 ```bash
 ./golox.sh run lox_examples/test_class.lox
